@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Conteúdo · Amaral & S Adv</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --navy: #1B2A4A;
+    --navy2: #2E4170;
+    --teal: #00C9A7;
+    --teal-l: #E6FAF6;
+    --white: #ffffff;
+    --gray-bg: #F4F6FA;
+    --gray-txt: #6B7A99;
+    --border: #D1D5DB;
+    --purp-bg: #EDE9FE;
+    --purp-txt: #5B21B6;
+    --yell-bg: #FEF3C7;
+    --yell-txt: #92400E;
+    --red-bg: #FEE2E2;
+    --red-txt: #991B1B;
+    --green-bg: #D1FAE5;
+    --green-txt: #065F46;
+    --rose-bg: #FCE7F3;
+    --rose-txt: #9D174D;
+    --blue-bg: #DBEAFE;
+    --blue-txt: #1E40AF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: var(--gray-bg); color: var(--navy); min-height: 100vh; }
+
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  header .logo { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
+  header .sub { font-size: 12px; color: var(--teal); font-weight: 400; margin-top: 2px; }
+  header .badge { margin-left: auto; background: var(--teal); color: var(--navy); font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
+
+  .main { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+  .card {
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 14px; font-weight: 700; color: var(--navy2); margin-bottom: 16px; text-transform: uppercase; letter-spacing: .5px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  label { font-size: 12px; font-weight: 700; color: var(--gray-txt); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+  select, input[type="text"], input[type="password"], textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    color: var(--navy);
+    background: var(--white);
+    outline: none;
+    transition: border-color .2s;
+  }
+  select:focus, input:focus, textarea:focus { border-color: var(--teal); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .api-row { display: flex; gap: 10px; align-items: flex-end; }
+  .api-row input { flex: 1; }
+  .api-row button { flex-shrink: 0; }
+
+  .btn {
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:hover { opacity: .88; }
+  .btn-teal { background: var(--teal); color: var(--navy); }
+  .btn-teal:hover { opacity: .88; }
+  .btn-outline { background: transparent; border: 1.5px solid var(--navy); color: var(--navy); }
+  .btn-outline:hover { background: var(--gray-bg); }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .generate-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .tag-crimes { background: var(--purp-bg); color: var(--purp-txt); }
+  .tag-alienacao { background: var(--yell-bg); color: var(--yell-txt); }
+  .tag-divorcio { background: var(--red-bg); color: var(--red-txt); }
+  .tag-pensao { background: var(--green-bg); color: var(--green-txt); }
+  .tag-fmt { background: var(--blue-bg); color: var(--blue-txt); }
+
+  #output-area { display: none; }
+
+  .result-card {
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .result-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .result-header .title { font-size: 15px; font-weight: 700; flex: 1; }
+  .result-body { padding: 20px; }
+
+  .field-label { font-size: 11px; font-weight: 700; color: var(--gray-txt); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+  .field-value {
+    font-size: 14px;
+    color: var(--navy);
+    background: var(--gray-bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    white-space: pre-wrap;
+    line-height: 1.6;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 700;
+    opacity: .7;
+    transition: opacity .2s;
+  }
+  .copy-btn:hover { opacity: 1; }
+
+  .export-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .export-bar span { font-size: 13px; color: var(--gray-txt); flex: 1; }
+
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .loading.show { display: block; }
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { font-size: 14px; color: var(--gray-txt); }
+
+  .error-box {
+    background: var(--red-bg);
+    color: var(--red-txt);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 13px;
+    margin-top: 16px;
+    display: none;
+  }
+  .error-box.show { display: block; }
+
+  .saved-list { display: flex; flex-direction: column; gap: 10px; }
+  .saved-item {
+    background: var(--gray-bg);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .saved-item .info { flex: 1; }
+  .saved-item .info strong { display: block; font-size: 13px; color: var(--navy); }
+  .saved-item .info span { color: var(--gray-txt); font-size: 12px; }
+
+  #saved-count { font-size: 12px; background: var(--teal); color: var(--navy); padding: 2px 10px; border-radius: 20px; font-weight: 700; }
+
+  .strat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .strat-item { background: var(--gray-bg); border-radius: 10px; padding: 14px; }
+  .strat-item h4 { font-size: 12px; font-weight: 700; color: var(--navy2); margin-bottom: 6px; }
+  .strat-item p { font-size: 12px; color: var(--gray-txt); line-height: 1.5; }
+  .error-box a { color: var(--red-txt); }
+  .error-box code { background: rgba(0,0,0,.08); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  .horario-chip {
+    display: inline-block;
+    background: var(--teal);
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin: 3px;
+  }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 0; }
+  .tab-btn {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    background: transparent;
+    color: var(--gray-txt);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color .2s, border-color .2s;
+  }
+  .tab-btn.active { color: var(--navy); border-bottom-color: var(--teal); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .tono-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--navy2);
+    background: var(--white);
+    margin: 4px;
+  }
+  .tono-pill.selected { border-color: var(--teal); background: var(--teal-l); color: var(--navy); }
+
+  @media (max-width: 640px) {
+    .grid-2, .grid-3, .strat-grid { grid-template-columns: 1fr; }
+    header { padding: 14px 16px; }
+    .main { padding: 20px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Amaral & S Adv</div>
+    <div class="sub">Gerador de Conteúdo · Direito de Família</div>
+  </div>
+  <div class="badge">IA Gemini</div>
+</header>
+
+<div class="main">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('gerar')">Gerar Conteúdo</button>
+    <button class="tab-btn" onclick="switchTab('salvos')">Salvos <span id="saved-count">0</span></button>
+    <button class="tab-btn" onclick="switchTab('estrategia')">Estratégia</button>
+  </div>
+
+  <!-- TAB: GERAR -->
+  <div id="tab-gerar" class="tab-pane active">
+
+    <!-- API KEY -->
+    <div class="card">
+      <h2>Configuração</h2>
+      <label>Chave de API Gemini</label>
+      <div class="api-row">
+        <input type="password" id="api-key" placeholder="Cole sua chave AIza..." />
+        <button class="btn btn-sm btn-outline" onclick="testAPI()">Testar</button>
+      </div>
+      <p id="api-status" style="font-size:12px;margin-top:8px;color:var(--gray-txt);"></p>
+    </div>
+
+    <!-- PARÂMETROS -->
+    <div class="card">
+      <h2>Parâmetros do Post</h2>
+      <div class="grid-3" style="margin-bottom:16px;">
+        <div>
+          <label>Produto</label>
+          <select id="produto" onchange="updateHorarios()">
+            <option value="crimes">🛡 Crimes Familiares</option>
+            <option value="alienacao">⚖️ Alienação Parental</option>
+            <option value="divorcio">💔 Divórcio</option>
+            <option value="pensao">💙 Pensão Alimentícia</option>
+          </select>
+        </div>
+        <div>
+          <label>Formato</label>
+          <select id="formato" onchange="updateHorarios()">
+            <option value="estatica">Imagem Estática</option>
+            <option value="carrossel">Carrossel</option>
+            <option value="reels">Reels (sem fala)</option>
+            <option value="stories">Stories</option>
+          </select>
+        </div>
+        <div>
+          <label>Canal</label>
+          <select id="canal">
+            <option value="instagram_organico">Instagram Orgânico</option>
+            <option value="meta_ads">Meta Ads (Feminino)</option>
+            <option value="google_ads">Google Ads (Todos)</option>
+            <option value="stories_canal">Instagram Stories</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div>
+          <label>Público-alvo</label>
+          <select id="publico">
+            <option value="mulher_vitima">Mulher — vítima / buscando proteção</option>
+            <option value="mulher_acusada">Mulher — acusada (alienação)</option>
+            <option value="homem_defesa">Homem — buscando defesa</option>
+            <option value="pai_alienado">Pai alienado</option>
+            <option value="generico">Geral (educativo)</option>
+          </select>
+        </div>
+        <div>
+          <label>Horário sugerido</label>
+          <input type="text" id="horario" readonly style="background:var(--teal-l);font-weight:700;color:var(--navy);" />
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label>Tom do conteúdo</label>
+        <div>
+          <span class="tono-pill selected" data-tom="empatico" onclick="selectTom(this)">Empático</span>
+          <span class="tono-pill" data-tom="urgente" onclick="selectTom(this)">Urgente</span>
+          <span class="tono-pill" data-tom="educativo" onclick="selectTom(this)">Educativo</span>
+          <span class="tono-pill" data-tom="institucional" onclick="selectTom(this)">Institucional</span>
+          <span class="tono-pill" data-tom="dado_impacto" onclick="selectTom(this)">Dado de impacto</span>
+        </div>
+      </div>
+      <div>
+        <label>Contexto adicional (opcional)</label>
+        <textarea id="contexto" placeholder="Ex: usar o dado de 3,7 milhões de mulheres afetadas, focar em BH/MG, mencionar upsell com pensão alimentícia..."></textarea>
+      </div>
+    </div>
+
+    <div class="card" style="padding:20px 24px;">
+      <div class="generate-row">
+        <button class="btn btn-primary" onclick="gerarConteudo()" id="btn-gerar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+          Gerar com Gemini
+        </button>
+        <button class="btn btn-teal" onclick="gerarBlog()" id="btn-blog">
+          + Headline Blog
+        </button>
+        <span style="font-size:12px;color:var(--gray-txt);">Gera copy, briefing visual e headline</span>
+      </div>
+      <div class="error-box" id="error-box"></div>
+    </div>
+
+    <!-- LOADING -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Gerando conteúdo com Gemini...</p>
+    </div>
+
+    <!-- OUTPUT -->
+    <div id="output-area">
+      <div class="result-card">
+        <div class="result-header">
+          <div class="title" id="out-title">Conteúdo Gerado</div>
+          <span class="tag tag-fmt" id="out-fmt-tag"></span>
+          <span class="tag" id="out-prod-tag"></span>
+        </div>
+        <div class="result-body">
+          <div class="field-label">Briefing Visual</div>
+          <div class="field-value" id="out-briefing">
+            <button class="copy-btn" onclick="copiar('out-briefing')">Copiar</button>
+            <span></span>
+          </div>
+
+          <div class="field-label">Copy / Legenda</div>
+          <div class="field-value" id="out-copy">
+            <button class="copy-btn" onclick="copiar('out-copy')">Copiar</button>
+            <span></span>
+          </div>
+
+          <div id="out-blog-area" style="display:none;">
+            <div class="field-label">Headline Blog</div>
+            <div class="field-value" id="out-blog">
+              <button class="copy-btn" onclick="copiar('out-blog')">Copiar</button>
+              <span></span>
+            </div>
+          </div>
+        </div>
+        <div class="export-bar">
+          <span>Pronto? Salve para exportar depois ou exporte direto.</span>
+          <button class="btn btn-sm btn-outline" onclick="salvarItem()">Salvar</button>
+          <button class="btn btn-sm btn-teal" onclick="exportarUm()">Exportar .xlsx</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TAB: SALVOS -->
+  <div id="tab-salvos" class="tab-pane">
+    <div class="card">
+      <h2 style="display:flex;align-items:center;gap:10px;">Posts Salvos <span id="saved-count2">0</span></h2>
+      <div id="saved-list" class="saved-list">
+        <p style="color:var(--gray-txt);font-size:13px;">Nenhum post salvo ainda.</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="exportarTodos()">Exportar tudo .xlsx</button>
+      <button class="btn btn-outline" onclick="limparSalvos()">Limpar lista</button>
+    </div>
+  </div>
+
+  <!-- TAB: ESTRATÉGIA -->
+  <div id="tab-estrategia" class="tab-pane">
+    <div class="card">
+      <h2>Produtos e Prioridade</h2>
+      <div class="strat-grid">
+        <div class="strat-item" style="background:var(--purp-bg);">
+          <h4 style="color:var(--purp-txt);">🛡 1º — Crimes Familiares</h4>
+          <p style="color:var(--purp-txt);">3,7M mulheres afetadas/ano · 2.500 processos/dia · Sinergia com funil de pensão alimentícia · Ticket R$3.500–12.000</p>
+        </div>
+        <div class="strat-item" style="background:var(--yell-bg);">
+          <h4 style="color:var(--yell-txt);">⚖️ 2º — Alienação Parental</h4>
+          <p style="color:var(--yell-txt);">+1.456% crescimento · Ângulo feminino inédito no Instagram · CPL menor que divórcio</p>
+        </div>
+        <div class="strat-item" style="background:var(--red-bg);">
+          <h4 style="color:var(--red-txt);">💔 3º — Divórcio</h4>
+          <p style="color:var(--red-txt);">428K divórcios/ano · Entrar com geo-foco BH/MG · Após consolidar produtos 1 e 2</p>
+        </div>
+        <div class="strat-item" style="background:var(--green-bg);">
+          <h4 style="color:var(--green-txt);">💙 Pensão Alimentícia</h4>
+          <p style="color:var(--green-txt);">Funil existente em queda · Manter como upsell natural · Não expandir budget agora</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Horários por Formato</h2>
+      <div class="strat-grid">
+        <div class="strat-item">
+          <h4>Imagem Estática</h4>
+          <span class="horario-chip">12h–13h</span>
+          <span class="horario-chip">19h</span>
+          <p style="margin-top:8px;">Frases de impacto, dados, autoridade. Alto desempenho no pago.</p>
+        </div>
+        <div class="strat-item">
+          <h4>Carrossel</h4>
+          <span class="horario-chip">10h</span>
+          <span class="horario-chip">12h</span>
+          <p style="margin-top:8px;">Educativo. Maior salvamento. Intervalo de trabalho.</p>
+        </div>
+        <div class="strat-item">
+          <h4>Reels (sem fala)</h4>
+          <span class="horario-chip">18h</span>
+          <span class="horario-chip">19h</span>
+          <p style="margin-top:8px;">Texto animado + trilha. Maior alcance orgânico.</p>
+        </div>
+        <div class="strat-item">
+          <h4>Stories</h4>
+          <span class="horario-chip">10h</span>
+          <span class="horario-chip">20h</span>
+          <p style="margin-top:8px;">Enquetes, dados, CTAs. Maior resposta a stickers à noite.</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Regra do Algoritmo</h2>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+        <div class="strat-item" style="flex:1;min-width:220px;background:var(--teal-l);">
+          <h4 style="color:var(--navy);">Meta Ads — FEMININO APENAS</h4>
+          <p>O algoritmo já está treinado para mulheres. Incluir homens prejudica performance atual e futura. Regra inegociável.</p>
+        </div>
+        <div class="strat-item" style="flex:1;min-width:220px;">
+          <h4>Google Ads — Todos os públicos</h4>
+          <p>Único canal para alcançar o público masculino. Busca ativa, sem histórico de gênero.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const HORARIOS = {
+  estatica:  { label: "12h00 · 19h00", default: "12h00" },
+  carrossel: { label: "10h00 · 12h00", default: "10h00" },
+  reels:     { label: "18h00 · 19h00", default: "18h30" },
+  stories:   { label: "10h00 · 20h00", default: "20h00" },
+};
+
+const PRODUTO_TAGS = {
+  crimes:   { cls: "tag-crimes",   label: "Crimes Familiares" },
+  alienacao:{ cls: "tag-alienacao",label: "Alienação Parental" },
+  divorcio: { cls: "tag-divorcio", label: "Divórcio" },
+  pensao:   { cls: "tag-pensao",   label: "Pensão Alimentícia" },
+};
+
+const FORMATO_LABELS = {
+  estatica:  "Imagem Estática",
+  carrossel: "Carrossel",
+  reels:     "Reels (sem fala)",
+  stories:   "Stories",
+};
+
+let salvos = [];
+let ultimoGerado = null;
+let gerarBlogJunto = false;
+
+function updateHorarios() {
+  const fmt = document.getElementById("formato").value;
+  document.getElementById("horario").value = HORARIOS[fmt]?.default || "18h00";
+}
+updateHorarios();
+
+function switchTab(name) {
+  document.querySelectorAll(".tab-btn").forEach((b,i) => b.classList.remove("active"));
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  const idx = ["gerar","salvos","estrategia"].indexOf(name);
+  document.querySelectorAll(".tab-btn")[idx].classList.add("active");
+  document.getElementById("tab-" + name).classList.add("active");
+}
+
+function selectTom(el) {
+  document.querySelectorAll(".tono-pill").forEach(p => p.classList.remove("selected"));
+  el.classList.add("selected");
+}
+
+function getSelectedTom() {
+  const sel = document.querySelector(".tono-pill.selected");
+  return sel ? sel.dataset.tom : "empatico";
+}
+
+function getAPIKey() {
+  return document.getElementById("api-key").value.trim();
+}
+
+async function testAPI() {
+  const key = getAPIKey();
+  if (!key) { setStatus("Cole sua chave primeiro.", "red"); return; }
+  setStatus("Testando...", "gray");
+  try {
+    const r = await callGemini(key, "Responda apenas: OK");
+    if (r.includes("OK") || r.length > 0) setStatus("✓ Chave válida e funcionando!", "green");
+    else setStatus("Resposta inesperada. Verifique a chave.", "red");
+  } catch(e) {
+    setStatus("Erro: " + e.message, "red");
+  }
+}
+
+function setStatus(msg, color) {
+  const el = document.getElementById("api-status");
+  el.textContent = msg;
+  el.style.color = color === "green" ? "var(--green-txt)" : color === "red" ? "var(--red-txt)" : "var(--gray-txt)";
+}
+
+async function callGemini(key, prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.85, maxOutputTokens: 1200 }
+  };
+
+  // Tenta fetch normal primeiro (funciona em http:// e GitHub Pages)
+  // Se falhar com CORS (file://), tenta XHR
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || "Erro HTTP " + res.status);
+    }
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  } catch(fetchErr) {
+    // Fallback para XHR (contorna bloqueio file:// em alguns navegadores)
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data.candidates?.[0]?.content?.parts?.[0]?.text || "");
+          } catch(e) { reject(new Error("Erro ao parsear resposta")); }
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText);
+            reject(new Error(err.error?.message || "Erro HTTP " + xhr.status));
+          } catch(e) { reject(new Error("Erro HTTP " + xhr.status)); }
+        }
+      };
+      xhr.onerror = function() {
+        reject(new Error(
+          "Não foi possível conectar à API do Gemini.\n\n" +
+          "O navegador bloqueou a requisição por estar abrindo o arquivo localmente (file://).\n\n" +
+          "Solução: veja as instruções na tela para hospedar o arquivo gratuitamente."
+        ));
+      };
+      xhr.send(JSON.stringify(body));
+    });
+  }
+}
+
+function buildPrompt(gerarBlog) {
+  const produto = document.getElementById("produto").value;
+  const formato = document.getElementById("formato").value;
+  const canal = document.getElementById("canal").value;
+  const publico = document.getElementById("publico").value;
+  const tom = getSelectedTom();
+  const horario = document.getElementById("horario").value;
+  const contexto = document.getElementById("contexto").value.trim();
+
+  const produtoMap = {
+    crimes: "Crimes Familiares (abandono material, violência doméstica, ameaça)",
+    alienacao: "Alienação Parental",
+    divorcio: "Divórcio (proteção patrimonial, guarda, pensão)",
+    pensao: "Pensão Alimentícia"
+  };
+  const formatoMap = {
+    estatica: "imagem estática (sem vídeo, apenas texto + elemento visual)",
+    carrossel: "carrossel de 5-6 slides (educativo, sem rosto, tipografia forte)",
+    reels: "Reels SEM FALA (apenas textos animados na tela + trilha instrumental, sem locução, sem roteiro falado)",
+    stories: "stories estático (1-3 imagens, enquete ou CTA)"
+  };
+  const publicoMap = {
+    mulher_vitima: "mulher que está sofrendo ou pode estar sofrendo a situação",
+    mulher_acusada: "mulher que foi acusada de alienação parental",
+    homem_defesa: "homem que precisa de defesa jurídica",
+    pai_alienado: "pai que está sendo impedido de ver os filhos",
+    generico: "público geral interessado em direito de família"
+  };
+  const tomMap = {
+    empatico: "empático e acolhedor — nunca sensacionalista, sempre do lado de quem sofre",
+    urgente: "urgente e direto — a situação exige ação imediata",
+    educativo: "educativo e informativo — ensina sem assustar",
+    institucional: "institucional e sólido — transmite autoridade e confiança",
+    dado_impacto: "baseado em dado de impacto — número choca, depois acolhe"
+  };
+
+  const escritorio = `Amaral & S Adv — escritório de Direito de Família, Belo Horizonte/MG, atendimento 100% online nacional, Instagram @amaral.sadv. Tom de voz: empático e acolhedor. NUNCA fazer promessa de resultado (regra OAB).`;
+
+  let prompt = `Você é especialista em marketing jurídico para o escritório ${escritorio}
+
+PRODUTO: ${produtoMap[produto]}
+FORMATO: ${formatoMap[formato]}
+CANAL: ${canal.replace("_", " ")}
+PÚBLICO: ${publicoMap[publico]}
+TOM: ${tomMap[tom]}
+HORÁRIO DO POST: ${horario}
+${contexto ? "CONTEXTO ADICIONAL: " + contexto : ""}
+
+Gere EXATAMENTE no formato JSON abaixo, sem nenhum texto fora do JSON:
+
+{
+  "briefing_visual": "Descrição detalhada da peça visual para o designer/criador. Para imagem estática: cores, tipografia, elementos visuais, sem foto de pessoa. Para carrossel: slide 1 (capa), slides do meio, slide final (CTA). Para Reels sem fala: sequência de textos animados que aparecerão na tela, estilo, trilha. Para stories: sequência de telas estáticas.",
+  "copy_legenda": "Legenda completa para o Instagram. Tom correto para o público. Incluir emojis estratégicos, hashtags relevantes no final (mínimo 5, máximo 10). Quebrar em parágrafos curtos.",
+  "headline_blog": ${gerarBlog ? '"Headline para post de blog relacionado, otimizada para SEO, entre 8-14 palavras"' : 'null'}
+}`;
+
+  return prompt;
+}
+
+async function gerarConteudo() {
+  gerarBlogJunto = false;
+  await executarGeracao();
+}
+
+async function gerarBlog() {
+  gerarBlogJunto = true;
+  await executarGeracao();
+}
+
+async function executarGeracao() {
+  const key = getAPIKey();
+  if (!key) {
+    showError("Cole sua chave de API do Gemini antes de gerar.");
+    return;
+  }
+
+  document.getElementById("loading").classList.add("show");
+  document.getElementById("output-area").style.display = "none";
+  document.getElementById("error-box").classList.remove("show");
+  document.getElementById("btn-gerar").disabled = true;
+  document.getElementById("btn-blog").disabled = true;
+
+  try {
+    const prompt = buildPrompt(gerarBlogJunto);
+    const raw = await callGemini(key, prompt);
+
+    let json;
+    try {
+      const clean = raw.replace(/```json|```/g, "").trim();
+      json = JSON.parse(clean);
+    } catch(e) {
+      throw new Error("A IA retornou formato inesperado. Tente novamente.");
+    }
+
+    ultimoGerado = {
+      produto: document.getElementById("produto").value,
+      formato: document.getElementById("formato").value,
+      canal: document.getElementById("canal").value,
+      horario: document.getElementById("horario").value,
+      briefing: json.briefing_visual || "",
+      copy: json.copy_legenda || "",
+      blog: json.headline_blog || "",
+      data: new Date().toLocaleDateString("pt-BR")
+    };
+
+    renderOutput(ultimoGerado);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    document.getElementById("loading").classList.remove("show");
+    document.getElementById("btn-gerar").disabled = false;
+    document.getElementById("btn-blog").disabled = false;
+  }
+}
+
+function renderOutput(item) {
+  const prod = PRODUTO_TAGS[item.produto];
+  document.getElementById("out-title").textContent = `${FORMATO_LABELS[item.formato]} · ${item.horario}`;
+  document.getElementById("out-prod-tag").className = "tag " + prod.cls;
+  document.getElementById("out-prod-tag").textContent = prod.label;
+  document.getElementById("out-fmt-tag").textContent = FORMATO_LABELS[item.formato];
+
+  setFieldValue("out-briefing", item.briefing);
+  setFieldValue("out-copy", item.copy);
+
+  const blogArea = document.getElementById("out-blog-area");
+  if (item.blog) {
+    setFieldValue("out-blog", item.blog);
+    blogArea.style.display = "block";
+  } else {
+    blogArea.style.display = "none";
+  }
+
+  document.getElementById("output-area").style.display = "block";
+  document.getElementById("output-area").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setFieldValue(id, text) {
+  const el = document.getElementById(id);
+  const btn = el.querySelector(".copy-btn");
+  el.textContent = "";
+  el.appendChild(btn);
+  el.appendChild(document.createTextNode(text));
+}
+
+function showError(msg) {
+  const el = document.getElementById("error-box");
+  const isCors = msg.includes("conectar") || msg.includes("fetch") || msg.includes("Failed");
+  if (isCors) {
+    el.innerHTML = `
+      <strong>Bloqueio de CORS detectado</strong> — o navegador não permite chamadas de API quando o arquivo é aberto como <code>file://</code>.<br><br>
+      <strong>Solução em 2 minutos (grátis):</strong><br>
+      1. Acesse <a href="https://pages.github.com" target="_blank" style="color:var(--red-txt);font-weight:700;">github.com</a> e crie uma conta gratuita<br>
+      2. Crie um repositório público chamado <code>amaral-conteudo</code><br>
+      3. Faça upload deste arquivo HTML<br>
+      4. Ative GitHub Pages em Settings → Pages → Branch: main<br>
+      5. Acesse pelo link <code>https://seuusuario.github.io/amaral-conteudo</code><br><br>
+      <em>Ou abra o arquivo com a extensão <strong>Live Server</strong> no VS Code.</em>
+    `;
+  } else {
+    el.textContent = "Erro: " + msg;
+  }
+  el.classList.add("show");
+}
+
+function copiar(id) {
+  const el = document.getElementById(id);
+  const text = el.innerText.replace("Copiar", "").trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = el.querySelector(".copy-btn");
+    const orig = btn.textContent;
+    btn.textContent = "✓";
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+function salvarItem() {
+  if (!ultimoGerado) return;
+  salvos.push({ ...ultimoGerado, id: Date.now() });
+  renderSalvos();
+  updateCounts();
+  const btn = event.target;
+  btn.textContent = "✓ Salvo";
+  setTimeout(() => btn.textContent = "Salvar", 1500);
+}
+
+function renderSalvos() {
+  const list = document.getElementById("saved-list");
+  if (salvos.length === 0) {
+    list.innerHTML = '<p style="color:var(--gray-txt);font-size:13px;">Nenhum post salvo ainda.</p>';
+    return;
+  }
+  list.innerHTML = salvos.map((s, i) => `
+    <div class="saved-item">
+      <div class="info">
+        <strong>${FORMATO_LABELS[s.formato]} · ${PRODUTO_TAGS[s.produto].label}</strong>
+        <span>${s.horario} · ${s.data}</span>
+      </div>
+      <span class="tag ${PRODUTO_TAGS[s.produto].cls}">${PRODUTO_TAGS[s.produto].label}</span>
+      <button class="btn btn-sm btn-outline" onclick="removerSalvo(${i})">Remover</button>
+    </div>
+  `).join("");
+}
+
+function removerSalvo(i) {
+  salvos.splice(i, 1);
+  renderSalvos();
+  updateCounts();
+}
+
+function limparSalvos() {
+  if (confirm("Limpar todos os posts salvos?")) {
+    salvos = [];
+    renderSalvos();
+    updateCounts();
+  }
+}
+
+function updateCounts() {
+  document.getElementById("saved-count").textContent = salvos.length;
+  document.getElementById("saved-count2").textContent = salvos.length;
+}
+
+function buildXLSX(items) {
+  const wb = XLSX.utils.book_new();
+
+  const header = ["Data", "Produto", "Formato", "Canal", "Horário", "Briefing Visual", "Copy / Legenda", "Headline Blog"];
+  const rows = items.map(s => [
+    s.data,
+    PRODUTO_TAGS[s.produto].label,
+    FORMATO_LABELS[s.formato],
+    s.canal.replace("_", " "),
+    s.horario,
+    s.briefing,
+    s.copy,
+    s.blog || "—"
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  ws["!cols"] = [12,20,18,20,10,50,60,40].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws, "Planejamento");
+
+  return wb;
+}
+
+function exportarUm() {
+  if (!ultimoGerado) return;
+  const wb = buildXLSX([ultimoGerado]);
+  XLSX.writeFile(wb, `conteudo_amaral_${Date.now()}.xlsx`);
+}
+
+function exportarTodos() {
+  if (salvos.length === 0) { alert("Nenhum post salvo para exportar."); return; }
+  const wb = buildXLSX(salvos);
+  XLSX.writeFile(wb, `planejamento_amaral_${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.xlsx`);
+}
+</script>
+</body>
+</html>
