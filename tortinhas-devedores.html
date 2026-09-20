@@ -1,0 +1,1162 @@
+<title>Fiado das Tortinhas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf4e8;
+    --paper-raised: #fffdf8;
+    --rule: #e6d8bb;
+    --ink: #2b2318;
+    --ink-soft: #7a6c52;
+    --ink-faint: #a99a7c;
+    --accent: #8c2f52;
+    --accent-soft: #f3dfe6;
+    --gold: #c9862a;
+    --gold-soft: #f6e5c6;
+    --debt: #ad3a34;
+    --debt-soft: #f7e0dc;
+    --paid: #4c7a52;
+    --paid-soft: #e2ede2;
+    --whats: #2f9e59;
+    --whats-ink: #fffdf8;
+    --shadow: rgba(43, 35, 24, 0.12);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #201a14;
+      --paper-raised: #291f17;
+      --rule: #3d3122;
+      --ink: #f3e9d8;
+      --ink-soft: #c2b49a;
+      --ink-faint: #8a7c62;
+      --accent: #e58bab;
+      --accent-soft: #402331;
+      --gold: #e8bb63;
+      --gold-soft: #3c2f18;
+      --debt: #e8837c;
+      --debt-soft: #402420;
+      --paid: #8fcb95;
+      --paid-soft: #223a26;
+      --whats: #4ecb85;
+      --whats-ink: #142117;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #201a14;
+    --paper-raised: #291f17;
+    --rule: #3d3122;
+    --ink: #f3e9d8;
+    --ink-soft: #c2b49a;
+    --ink-faint: #8a7c62;
+    --accent: #e58bab;
+    --accent-soft: #402331;
+    --gold: #e8bb63;
+    --gold-soft: #3c2f18;
+    --debt: #e8837c;
+    --debt-soft: #402420;
+    --paid: #8fcb95;
+    --paid-soft: #223a26;
+    --whats: #4ecb85;
+    --whats-ink: #142117;
+    --shadow: rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 31px,
+      var(--rule) 32px
+    );
+    color: var(--ink);
+    font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+    padding-inline: 16px;
+    padding-block: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  #app {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  h1 {
+    font-family: "Caveat", cursive;
+    font-weight: 700;
+    font-size: 2.6rem;
+    line-height: 1;
+    margin: 0;
+    color: var(--accent);
+    text-wrap: balance;
+  }
+  .subtitle {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+
+  header.top {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .price-pill {
+    background: var(--gold-soft);
+    color: var(--gold);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .price-pill:hover { filter: brightness(0.96); }
+
+  .price-edit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--gold-soft);
+    border-radius: 999px;
+    padding: 4px 6px 4px 12px;
+  }
+  .price-edit span { font-size: 0.8rem; color: var(--gold); font-weight: 700; }
+  .price-edit input {
+    width: 64px;
+    border: none;
+    background: var(--paper-raised);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .price-edit button {
+    border: none;
+    background: var(--gold);
+    color: var(--paper-raised);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+
+  .totals-card {
+    background: var(--paper-raised);
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 16px var(--shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .totals-card .label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .totals-card .amount {
+    font-size: 1.9rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--debt);
+  }
+  .totals-card .amount.zero { color: var(--paid); }
+  .totals-card .people {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+
+  .storage-note {
+    font-size: 0.82rem;
+    color: var(--gold);
+    background: var(--gold-soft);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.35;
+  }
+  .storage-note strong { display: block; color: var(--ink); }
+
+  form#add-form {
+    background: var(--paper-raised);
+    border-radius: 18px;
+    padding: 16px 18px;
+    box-shadow: 0 6px 16px var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  form#add-form .row-title {
+    font-family: "Caveat", cursive;
+    font-size: 1.4rem;
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .field-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  #nome-input {
+    flex: 1;
+    min-width: 0;
+    border: 1.5px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font: inherit;
+    font-size: 0.95rem;
+  }
+  #nome-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .name-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .name-chip {
+    border: 1.5px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .name-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .name-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper-raised);
+  }
+
+  .stepper {
+    display: flex;
+    align-items: center;
+    background: var(--paper);
+    border: 1.5px solid var(--rule);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .stepper button {
+    width: 38px;
+    border: none;
+    background: transparent;
+    color: var(--accent);
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+  }
+  .stepper button:active { background: var(--accent-soft); }
+  .stepper input {
+    width: 36px;
+    text-align: center;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .add-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .subtotal-preview {
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .subtotal-preview b { color: var(--ink); }
+  #add-form button[type="submit"] {
+    border: none;
+    background: var(--accent);
+    color: var(--paper-raised);
+    font-weight: 700;
+    font-size: 0.92rem;
+    border-radius: 12px;
+    padding: 11px 20px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #add-form button[type="submit"]:active { transform: translateY(1px); }
+  #add-form button[type="submit"]:disabled { opacity: 0.5; cursor: default; }
+
+  section.list-section { display: flex; flex-direction: column; gap: 10px; }
+  .section-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    font-weight: 700;
+    padding-left: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: default;
+  }
+  .section-label.toggle { cursor: pointer; }
+  .section-label .chev { font-size: 0.7rem; transition: transform 0.15s; display: inline-block; }
+  .section-label .chev.open { transform: rotate(90deg); }
+
+  .person-card {
+    background: var(--paper-raised);
+    border-radius: 16px;
+    box-shadow: 0 4px 10px var(--shadow);
+    overflow: hidden;
+  }
+  .person-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .person-info { min-width: 0; }
+  .person-name {
+    font-weight: 700;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .person-meta {
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    margin-top: 1px;
+  }
+  .person-amount {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .person-amount .value {
+    font-weight: 800;
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--debt);
+  }
+  .person-amount .value.paid-off { color: var(--paid); font-size: 0.95rem; }
+  .person-amount .chev {
+    font-size: 0.7rem;
+    color: var(--ink-faint);
+    margin-top: 2px;
+    display: inline-block;
+    transition: transform 0.15s;
+  }
+  .person-amount .chev.open { transform: rotate(90deg); }
+
+  .person-body {
+    border-top: 1px solid var(--rule);
+    padding: 8px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .line-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .line-item:last-of-type { border-bottom: none; }
+  .line-check {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    border: 1.5px solid var(--ink-faint);
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: var(--paper-raised);
+    background: transparent;
+  }
+  .line-check.checked {
+    background: var(--paid);
+    border-color: var(--paid);
+  }
+  .line-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.87rem;
+  }
+  .line-text .qty { font-weight: 600; }
+  .line-text .date { color: var(--ink-faint); font-size: 0.78rem; }
+  .line-item.is-paid .line-text { color: var(--ink-faint); text-decoration: line-through; }
+  .line-sub {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .line-del {
+    border: none;
+    background: transparent;
+    color: var(--ink-faint);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+  }
+  .line-del:hover { color: var(--debt); }
+
+  .pay-all-btn {
+    align-self: flex-start;
+    margin-top: 4px;
+    border: 1.5px solid var(--paid);
+    color: var(--paid);
+    background: transparent;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .pay-all-btn:hover { background: var(--paid-soft); }
+
+  .charge-row {
+    padding: 0 16px 12px;
+    margin-top: -2px;
+  }
+  .charge-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: var(--whats);
+    color: var(--whats-ink);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .charge-btn:hover { filter: brightness(1.05); }
+  .charge-missing {
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+  }
+
+  .empty-state {
+    background: var(--paper-raised);
+    border: 1.5px dashed var(--rule);
+    border-radius: 16px;
+    padding: 28px 20px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .empty-state .emoji-free { font-family: "Caveat", cursive; font-size: 1.6rem; color: var(--accent); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%) translateY(12px);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 20px var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s, transform 0.18s;
+    z-index: 20;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  .toast button {
+    border: none;
+    background: transparent;
+    color: var(--gold);
+    font-weight: 700;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<div id="app">
+  <header class="top">
+    <div class="title-row">
+      <div>
+        <h1>Fiado das Tortinhas</h1>
+        <div class="subtitle">Quem levou e ainda não pagou</div>
+      </div>
+      <div id="price-slot"></div>
+    </div>
+
+    <div class="totals-card">
+      <div>
+        <div class="label">Total a receber</div>
+        <div class="people" id="people-count">carregando…</div>
+      </div>
+      <div class="amount" id="total-amount">—</div>
+    </div>
+    <div class="storage-note" id="storage-note" hidden>
+      <span>⚠️
+        <strong>Salvando só neste aparelho</strong>
+        Abrindo assim (atalho/link direto), não dá pra sincronizar com sua conta. Pra não perder nada, abra pelo site ou app do Claude em vez do atalho.
+      </span>
+    </div>
+  </header>
+
+  <form id="add-form">
+    <div class="row-title">Anotar venda</div>
+    <div class="name-chips" id="name-chips"></div>
+    <div class="field-row">
+      <input id="nome-input" name="nome" type="text" placeholder="Nome de quem levou" autocomplete="off" list="nomes-conhecidos" required />
+      <div class="stepper">
+        <button type="button" id="qty-minus" aria-label="Diminuir">–</button>
+        <input id="qty-input" type="number" min="1" max="99" value="1" inputmode="numeric" />
+        <button type="button" id="qty-plus" aria-label="Aumentar">+</button>
+      </div>
+    </div>
+    <datalist id="nomes-conhecidos"></datalist>
+    <div class="add-footer">
+      <div class="subtotal-preview">Fica em <b id="subtotal-preview">R$ 8,50</b></div>
+      <button type="submit" id="submit-btn">Anotar</button>
+    </div>
+  </form>
+
+  <section class="list-section" id="pending-section">
+    <div class="section-label">Devendo</div>
+    <div id="pending-list"></div>
+  </section>
+
+  <section class="list-section" id="paid-section" hidden>
+    <div class="section-label toggle" id="paid-toggle">
+      <span class="chev" id="paid-chev">▸</span>
+      <span id="paid-label">Quitados</span>
+    </div>
+    <div id="paid-list" hidden></div>
+  </section>
+</div>
+
+<div class="toast" id="toast">
+  <span id="toast-text"></span>
+  <button id="toast-undo">Desfazer</button>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = { sales: [], price: 8.5, ready: false, localMode: false };
+  var QUICK_NAMES = ["Carol", "Daniel", "Gabi", "Polly"];
+
+  var PIX_CHAVE = "Olicamila2014@gmail.com";
+  var PIX_TITULAR = "Elizângela Camila de Oliveira";
+  var CONTATOS = {
+    polly: "5531993666117",
+    daniel: "5531994722666",
+    carol: "5531987415344",
+    gabi: "5531972266852"
+  };
+
+  function normName(s) {
+    return (s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+  var expanded = new Set();
+  var paidOpen = false;
+  var lastDeleted = null;
+  var toastTimer = null;
+
+  function fmtBRL(n) {
+    return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function fmtDate(iso) {
+    var parts = (iso || "").split("-");
+    if (parts.length !== 3) return iso || "";
+    return parts[2] + "/" + parts[1];
+  }
+
+  // ---------- storage layer: db capability with localStorage fallback ----------
+  var LOCAL_SALES_KEY = "tortinhas_vendas_v1";
+  var LOCAL_PRICE_KEY = "tortinhas_preco_v1";
+  var store = null;
+
+  // Only used to bootstrap a brand-new, empty localStorage (first ever
+  // load on a device) — e.g. when this file is self-hosted instead of
+  // opened through claude.ai — so today's real debts aren't lost in
+  // the switch. Never touched again once storage has anything in it.
+  var SEED_SALES = [
+    { id: "seed-daniel", nome: "Daniel", quantidade: 3, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000000 },
+    { id: "seed-polly", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000001 },
+    { id: "seed-carol", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000002 },
+    { id: "seed-gabi", nome: "Gabi", quantidade: 3, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000003 }
+  ];
+
+  function localLoad() {
+    try {
+      var raw = localStorage.getItem(LOCAL_SALES_KEY);
+      if (raw) {
+        state.sales = JSON.parse(raw);
+      } else {
+        state.sales = SEED_SALES.slice();
+        localSave();
+      }
+    } catch (e) { state.sales = []; }
+    try {
+      var p = localStorage.getItem(LOCAL_PRICE_KEY);
+      state.price = p ? parseFloat(p) : 8.5;
+    } catch (e) { state.price = 8.5; }
+  }
+  function localSave() {
+    try { localStorage.setItem(LOCAL_SALES_KEY, JSON.stringify(state.sales)); } catch (e) {}
+  }
+
+  function makeLocalStore() {
+    state.localMode = true;
+    localLoad();
+    return {
+      addSale: function (data) {
+        data.id = "l" + Date.now() + Math.random().toString(36).slice(2, 7);
+        state.sales.push(data);
+        localSave();
+        render();
+        return Promise.resolve(data.id);
+      },
+      updateSale: function (id, patch) {
+        var s = state.sales.find(function (x) { return x.id === id; });
+        if (s) Object.assign(s, patch);
+        localSave();
+        render();
+        return Promise.resolve();
+      },
+      deleteSale: function (id) {
+        state.sales = state.sales.filter(function (x) { return x.id !== id; });
+        localSave();
+        render();
+        return Promise.resolve();
+      },
+      restoreSale: function (data) {
+        state.sales.push(data);
+        localSave();
+        render();
+      },
+      setPrice: function (v) {
+        state.price = v;
+        try { localStorage.setItem(LOCAL_PRICE_KEY, String(v)); } catch (e) {}
+        render();
+        return Promise.resolve();
+      }
+    };
+  }
+
+  function makeDbStore(db) {
+    var vendas = db.collection("vendas");
+    var priceDoc = db.doc("config/preco");
+
+    vendas.onSnapshot(function (snap) {
+      state.sales = snap.docs.map(function (d) {
+        var data = d.data() || {};
+        data.id = d.id;
+        return data;
+      });
+      render();
+    }, function () {
+      // subscription died — fall back to local so the page stays usable
+      store = makeLocalStore();
+      render();
+    });
+
+    priceDoc.onSnapshot(function (snap) {
+      var data = snap.exists ? snap.data() : null;
+      state.price = data && typeof data.valor === "number" ? data.valor : 8.5;
+      render();
+    }, function () { /* keep default price on error */ });
+
+    return {
+      addSale: function (data) {
+        return vendas.add(data).then(function (ref) { return ref.id; });
+      },
+      updateSale: function (id, patch) {
+        return vendas.doc(id).update(patch);
+      },
+      deleteSale: function (id) {
+        return vendas.doc(id).delete();
+      },
+      restoreSale: function (data) {
+        var copy = Object.assign({}, data);
+        delete copy.id;
+        return vendas.add(copy);
+      },
+      setPrice: function (v) {
+        return priceDoc.set({ valor: v });
+      }
+    };
+  }
+
+  // ---------- rendering ----------
+  var els = {
+    priceSlot: document.getElementById("price-slot"),
+    totalAmount: document.getElementById("total-amount"),
+    peopleCount: document.getElementById("people-count"),
+    storageNote: document.getElementById("storage-note"),
+    pendingList: document.getElementById("pending-list"),
+    paidSection: document.getElementById("paid-section"),
+    paidList: document.getElementById("paid-list"),
+    paidLabel: document.getElementById("paid-label"),
+    paidChev: document.getElementById("paid-chev"),
+    nomes: document.getElementById("nomes-conhecidos"),
+    nomeInput: document.getElementById("nome-input"),
+    qtyInput: document.getElementById("qty-input"),
+    subtotalPreview: document.getElementById("subtotal-preview")
+  };
+
+  function groupByName(sales) {
+    var map = new Map();
+    sales.forEach(function (s) {
+      var key = (s.nome || "").trim();
+      if (!key) return;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(s);
+    });
+    return map;
+  }
+
+  function renderPriceSlot() {
+    els.priceSlot.innerHTML = "";
+    var pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "price-pill";
+    pill.textContent = fmtBRL(state.price) + " /un";
+    pill.addEventListener("click", function () { renderPriceEdit(); });
+    els.priceSlot.appendChild(pill);
+  }
+
+  function renderPriceEdit() {
+    els.priceSlot.innerHTML = "";
+    var wrap = document.createElement("div");
+    wrap.className = "price-edit";
+    var label = document.createElement("span");
+    label.textContent = "R$";
+    var input = document.createElement("input");
+    input.type = "number";
+    input.step = "0.10";
+    input.min = "0";
+    input.value = state.price.toFixed(2);
+    var btn = document.createElement("button");
+    btn.textContent = "Ok";
+    btn.addEventListener("click", function () {
+      var v = parseFloat(input.value);
+      if (!isNaN(v) && v > 0) store.setPrice(Math.round(v * 100) / 100);
+      renderPriceSlot();
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); btn.click(); }
+    });
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+    wrap.appendChild(btn);
+    els.priceSlot.appendChild(wrap);
+    input.focus();
+    input.select();
+  }
+
+  function renderNames() {
+    var names = Array.from(groupByName(state.sales).keys()).sort();
+    els.nomes.innerHTML = "";
+    names.forEach(function (n) {
+      var opt = document.createElement("option");
+      opt.value = n;
+      els.nomes.appendChild(opt);
+    });
+  }
+
+  function renderChips() {
+    var wrap = document.getElementById("name-chips");
+    if (!wrap) return;
+    var current = els.nomeInput.value.trim().toLowerCase();
+    wrap.innerHTML = "";
+    QUICK_NAMES.forEach(function (n) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "name-chip" + (current === n.toLowerCase() ? " active" : "");
+      btn.textContent = n;
+      btn.addEventListener("click", function () {
+        els.nomeInput.value = n;
+        renderChips();
+        els.qtyInput.focus();
+        els.qtyInput.select();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  function buildChargeMessage(name, pendingItems, owed) {
+    var linhas = pendingItems
+      .slice()
+      .sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); })
+      .map(function (s) {
+        var sub = (s.quantidade || 0) * (s.precoUnitario || state.price);
+        return "- " + fmtDate(s.data) + ": " + s.quantidade + " tortinha" + (s.quantidade > 1 ? "s" : "") + " (" + fmtBRL(sub) + ")";
+      })
+      .join("\n");
+    return (
+      "Oi, " + name + "! 🥧\n\n" +
+      "Esta é uma mensagem automática do sistema de gerenciamento de tortinhas que eu criei para controlar as vendas fiado.\n\n" +
+      "Você tem tortinha(s) em aberto:\n" + linhas + "\n\n" +
+      "Total a pagar: " + fmtBRL(owed) + "\n\n" +
+      "Pra quitar, pode fazer o Pix pra:\n" +
+      "Chave: " + PIX_CHAVE + "\n" +
+      "Titular: " + PIX_TITULAR + "\n\n" +
+      "Obrigada! 💛"
+    );
+  }
+
+  function buildWhatsAppLink(name, pendingItems, owed) {
+    var phone = CONTATOS[normName(name)];
+    if (!phone || !pendingItems.length) return null;
+    var msg = buildChargeMessage(name, pendingItems, owed);
+    return "https://wa.me/" + phone + "?text=" + encodeURIComponent(msg);
+  }
+
+  function lineHTML(sale) {
+    var sub = (sale.quantidade || 0) * (sale.precoUnitario || state.price);
+    var checked = !!sale.pago;
+    return (
+      '<div class="line-item' + (checked ? " is-paid" : "") + '" data-id="' + sale.id + '">' +
+        '<button type="button" class="line-check' + (checked ? " checked" : "") + '" data-action="toggle" data-id="' + sale.id + '" aria-label="Marcar pago">' + (checked ? "✓" : "") + '</button>' +
+        '<div class="line-text"><span class="qty">' + sale.quantidade + ' tortinha' + (sale.quantidade > 1 ? "s" : "") + '</span> · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
+        '<div class="line-sub">' + fmtBRL(sub) + '</div>' +
+        '<button type="button" class="line-del" data-action="delete" data-id="' + sale.id + '" aria-label="Remover">✕</button>' +
+      '</div>'
+    );
+  }
+
+  function personCard(name, sales, isOpenGroup) {
+    var pending = sales.filter(function (s) { return !s.pago; });
+    var owed = pending.reduce(function (sum, s) { return sum + (s.quantidade || 0) * (s.precoUnitario || state.price); }, 0);
+    var totalQty = pending.reduce(function (sum, s) { return sum + (s.quantidade || 0); }, 0);
+    var isExpanded = expanded.has(name);
+    var sorted = sales.slice().sort(function (a, b) { return (b.criadoEm || 0) - (a.criadoEm || 0); });
+    var firstDate = sales.reduce(function (min, s) {
+      return (!min || (s.data && s.data < min)) ? s.data : min;
+    }, null);
+
+    var card = document.createElement("div");
+    card.className = "person-card";
+
+    var head = document.createElement("div");
+    head.className = "person-head";
+    var metaText = owed > 0
+      ? totalQty + " tortinha" + (totalQty > 1 ? "s" : "") + " pendente" + (totalQty > 1 ? "s" : "")
+      : "tudo quitado";
+    if (firstDate) metaText += " · desde " + fmtDate(firstDate);
+    head.innerHTML =
+      '<div class="person-info">' +
+        '<div class="person-name">' + escapeHTML(name) + '</div>' +
+        '<div class="person-meta">' + metaText + '</div>' +
+      '</div>' +
+      '<div class="person-amount">' +
+        '<div class="value' + (owed === 0 ? " paid-off" : "") + '">' + (owed > 0 ? fmtBRL(owed) : "✓ pago") + '</div>' +
+        '<span class="chev' + (isExpanded ? " open" : "") + '">▸</span>' +
+      '</div>';
+    head.addEventListener("click", function () {
+      if (expanded.has(name)) expanded.delete(name); else expanded.add(name);
+      render();
+    });
+    card.appendChild(head);
+
+    if (owed > 0) {
+      var chargeRow = document.createElement("div");
+      chargeRow.className = "charge-row";
+      var waLink = buildWhatsAppLink(name, pending, owed);
+      if (waLink) {
+        var chargeBtn = document.createElement("a");
+        chargeBtn.className = "charge-btn";
+        chargeBtn.href = waLink;
+        chargeBtn.target = "_blank";
+        chargeBtn.rel = "noopener";
+        chargeBtn.textContent = "📲 Cobrar no WhatsApp";
+        chargeBtn.addEventListener("click", function (e) { e.stopPropagation(); });
+        chargeRow.appendChild(chargeBtn);
+      } else {
+        var noPhone = document.createElement("span");
+        noPhone.className = "charge-missing";
+        noPhone.textContent = "Sem WhatsApp cadastrado pra cobrar";
+        chargeRow.appendChild(noPhone);
+      }
+      card.appendChild(chargeRow);
+    }
+
+    if (isExpanded) {
+      var body = document.createElement("div");
+      body.className = "person-body";
+      body.innerHTML = sorted.map(lineHTML).join("");
+      if (pending.length > 1) {
+        var payAll = document.createElement("button");
+        payAll.type = "button";
+        payAll.className = "pay-all-btn";
+        payAll.textContent = "Marcar tudo como pago";
+        payAll.addEventListener("click", function (e) {
+          e.stopPropagation();
+          pending.forEach(function (s) {
+            store.updateSale(s.id, { pago: true, pagoEm: todayISO() });
+          });
+        });
+        body.appendChild(payAll);
+      }
+      card.appendChild(body);
+    }
+
+    return card;
+  }
+
+  function escapeHTML(s) {
+    var d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function render() {
+    renderPriceSlot();
+    renderNames();
+    renderChips();
+
+    var groups = groupByName(state.sales);
+    var pendingGroups = [];
+    var paidGroups = [];
+
+    groups.forEach(function (sales, name) {
+      var owed = sales.filter(function (s) { return !s.pago; })
+        .reduce(function (sum, s) { return sum + (s.quantidade || 0) * (s.precoUnitario || state.price); }, 0);
+      if (owed > 0) pendingGroups.push([name, sales, owed]);
+      else paidGroups.push([name, sales, 0]);
+    });
+
+    pendingGroups.sort(function (a, b) { return b[2] - a[2] || a[0].localeCompare(b[0]); });
+    paidGroups.sort(function (a, b) { return a[0].localeCompare(b[0]); });
+
+    var totalOwed = pendingGroups.reduce(function (sum, g) { return sum + g[2]; }, 0);
+    els.totalAmount.textContent = fmtBRL(totalOwed);
+    els.totalAmount.className = "amount" + (totalOwed === 0 ? " zero" : "");
+    els.peopleCount.textContent = pendingGroups.length === 0
+      ? (groups.size === 0 ? "nenhuma venda ainda" : "ninguém devendo")
+      : pendingGroups.length + (pendingGroups.length === 1 ? " pessoa devendo" : " pessoas devendo");
+
+    els.pendingList.innerHTML = "";
+    if (pendingGroups.length === 0) {
+      var empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.innerHTML = groups.size === 0
+        ? '<div class="emoji-free">✎</div><div>Nenhuma tortinha fiada ainda.<br/>Anote a primeira venda acima.</div>'
+        : '<div class="emoji-free">✓</div><div>Ninguém devendo no momento!</div>';
+      els.pendingList.appendChild(empty);
+    } else {
+      var wrap = document.createElement("div");
+      wrap.style.display = "flex";
+      wrap.style.flexDirection = "column";
+      wrap.style.gap = "10px";
+      pendingGroups.forEach(function (g) { wrap.appendChild(personCard(g[0], g[1])); });
+      els.pendingList.appendChild(wrap);
+    }
+
+    els.paidSection.hidden = paidGroups.length === 0;
+    els.paidLabel.textContent = "Quitados (" + paidGroups.length + ")";
+    els.paidChev.className = "chev" + (paidOpen ? " open" : "");
+    els.paidList.hidden = !paidOpen;
+    els.paidList.innerHTML = "";
+    if (paidOpen) {
+      var pwrap = document.createElement("div");
+      pwrap.style.display = "flex";
+      pwrap.style.flexDirection = "column";
+      pwrap.style.gap = "10px";
+      paidGroups.forEach(function (g) { pwrap.appendChild(personCard(g[0], g[1])); });
+      els.paidList.appendChild(pwrap);
+    }
+
+    els.storageNote.hidden = !state.localMode;
+    updateSubtotalPreview();
+  }
+
+  function updateSubtotalPreview() {
+    var qty = parseInt(els.qtyInput.value, 10) || 1;
+    els.subtotalPreview.textContent = fmtBRL(qty * state.price);
+  }
+
+  // ---------- events ----------
+  document.getElementById("qty-minus").addEventListener("click", function () {
+    var v = Math.max(1, (parseInt(els.qtyInput.value, 10) || 1) - 1);
+    els.qtyInput.value = v;
+    updateSubtotalPreview();
+  });
+  document.getElementById("qty-plus").addEventListener("click", function () {
+    var v = Math.min(99, (parseInt(els.qtyInput.value, 10) || 1) + 1);
+    els.qtyInput.value = v;
+    updateSubtotalPreview();
+  });
+  els.qtyInput.addEventListener("input", updateSubtotalPreview);
+  els.nomeInput.addEventListener("input", renderChips);
+
+  // Sales typed before the storage backend has finished connecting are
+  // held here so the list updates instantly no matter what; settle()
+  // flushes them into real storage once it's ready.
+  var queuedSales = [];
+
+  document.getElementById("add-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var nome = els.nomeInput.value.trim();
+    var qty = parseInt(els.qtyInput.value, 10) || 1;
+    if (!nome) return;
+
+    var saleData = {
+      nome: nome,
+      quantidade: qty,
+      precoUnitario: state.price,
+      data: todayISO(),
+      pago: false,
+      pagoEm: null,
+      criadoEm: Date.now()
+    };
+
+    // Show it in the list immediately — don't wait on the storage
+    // round-trip, so the click always has visible, instant feedback.
+    var optimistic = Object.assign(
+      { id: "pending-" + Date.now() + Math.random().toString(36).slice(2, 7) },
+      saleData
+    );
+    state.sales.push(optimistic);
+    render();
+
+    if (store) {
+      Promise.resolve(store.addSale(saleData)).catch(function () {
+        state.sales = state.sales.filter(function (s) { return s.id !== optimistic.id; });
+        render();
+        showToast("Não deu pra salvar agora, tenta de novo");
+      });
+    } else {
+      queuedSales.push(optimistic);
+    }
+
+    els.nomeInput.value = "";
+    els.qtyInput.value = "1";
+    updateSubtotalPreview();
+    renderChips();
+    els.nomeInput.focus();
+  });
+
+  document.getElementById("paid-toggle").addEventListener("click", function () {
+    paidOpen = !paidOpen;
+    render();
+  });
+
+  document.addEventListener("click", function (e) {
+    var toggleBtn = e.target.closest('[data-action="toggle"]');
+    var delBtn = e.target.closest('[data-action="delete"]');
+    if (toggleBtn) {
+      e.stopPropagation();
+      var id = toggleBtn.getAttribute("data-id");
+      var sale = state.sales.find(function (s) { return s.id === id; });
+      if (sale) store.updateSale(id, { pago: !sale.pago, pagoEm: !sale.pago ? todayISO() : null });
+    } else if (delBtn) {
+      e.stopPropagation();
+      var did = delBtn.getAttribute("data-id");
+      var s2 = state.sales.find(function (s) { return s.id === did; });
+      if (s2) {
+        lastDeleted = Object.assign({}, s2);
+        store.deleteSale(did);
+        showToast("Anotação removida");
+      }
+    }
+  });
+
+  function showToast(text) {
+    var toast = document.getElementById("toast");
+    document.getElementById("toast-text").textContent = text;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove("show"); }, 5000);
+  }
+  document.getElementById("toast-undo").addEventListener("click", function () {
+    if (lastDeleted && store) {
+      store.restoreSale(lastDeleted);
+      lastDeleted = null;
+    }
+    document.getElementById("toast").classList.remove("show");
+  });
+
+  // ---------- boot ----------
+  render();
+
+  var settled = false;
+  function settle(db) {
+    if (settled) return;
+    settled = true;
+    store = db ? makeDbStore(db) : makeLocalStore();
+    // makeLocalStore() reloads state.sales from localStorage, which would
+    // silently drop anything typed while we were still connecting — so
+    // replay those into the now-real store instead of losing them.
+    queuedSales.forEach(function (queued) {
+      state.sales = state.sales.filter(function (s) { return s.id !== queued.id; });
+      var copy = Object.assign({}, queued);
+      delete copy.id;
+      store.addSale(copy);
+    });
+    queuedSales = [];
+    render();
+  }
+
+  // If the db capability never answers, don't leave the page stuck
+  // waiting forever — fall back to a local-only store after a few
+  // seconds so the app is always usable.
+  setTimeout(function () { settle(null); }, 6000);
+
+  (window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null))
+    .catch(function () { return null; })
+    .then(settle);
+})();
+</script>
