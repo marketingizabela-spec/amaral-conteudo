@@ -627,10 +627,26 @@
   var LOCAL_PRICE_KEY = "tortinhas_preco_v1";
   var store = null;
 
+  // Only used to bootstrap a brand-new, empty localStorage (first ever
+  // load on a device) — e.g. when this file is self-hosted instead of
+  // opened through claude.ai — so today's real debts aren't lost in
+  // the switch. Never touched again once storage has anything in it.
+  var SEED_SALES = [
+    { id: "seed-daniel", nome: "Daniel", quantidade: 3, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000000 },
+    { id: "seed-polly", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000001 },
+    { id: "seed-carol", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000002 },
+    { id: "seed-gabi", nome: "Gabi", quantidade: 3, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000003 }
+  ];
+
   function localLoad() {
     try {
       var raw = localStorage.getItem(LOCAL_SALES_KEY);
-      state.sales = raw ? JSON.parse(raw) : [];
+      if (raw) {
+        state.sales = JSON.parse(raw);
+      } else {
+        state.sales = SEED_SALES.slice();
+        localSave();
+      }
     } catch (e) { state.sales = []; }
     try {
       var p = localStorage.getItem(LOCAL_PRICE_KEY);
