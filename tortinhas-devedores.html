@@ -18,6 +18,8 @@
     --debt-soft: #f7e0dc;
     --paid: #4c7a52;
     --paid-soft: #e2ede2;
+    --whats: #2f9e59;
+    --whats-ink: #fffdf8;
     --shadow: rgba(43, 35, 24, 0.12);
     color-scheme: light;
   }
@@ -37,6 +39,8 @@
       --debt-soft: #402420;
       --paid: #8fcb95;
       --paid-soft: #223a26;
+      --whats: #4ecb85;
+      --whats-ink: #142117;
       --shadow: rgba(0, 0, 0, 0.35);
     }
   }
@@ -55,6 +59,8 @@
     --debt-soft: #402420;
     --paid: #8fcb95;
     --paid-soft: #223a26;
+    --whats: #4ecb85;
+    --whats-ink: #142117;
     --shadow: rgba(0, 0, 0, 0.35);
   }
 
@@ -443,6 +449,30 @@
   }
   .pay-all-btn:hover { background: var(--paid-soft); }
 
+  .charge-row {
+    padding: 0 16px 12px;
+    margin-top: -2px;
+  }
+  .charge-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: var(--whats);
+    color: var(--whats-ink);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .charge-btn:hover { filter: brightness(1.05); }
+  .charge-missing {
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+  }
+
   .empty-state {
     background: var(--paper-raised);
     border: 1.5px dashed var(--rule);
@@ -557,6 +587,19 @@
 
   var state = { sales: [], price: 8.5, ready: false, localMode: false };
   var QUICK_NAMES = ["Carol", "Daniel", "Gabi", "Polly"];
+
+  var PIX_CHAVE = "Olicamila2014@gmail.com";
+  var PIX_TITULAR = "Elizângela Camila de Oliveira";
+  var CONTATOS = {
+    polly: "5531993666117",
+    daniel: "5531994722666",
+    carol: "5531987415344",
+    gabi: "5531972266852"
+  };
+
+  function normName(s) {
+    return (s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
   var expanded = new Set();
   var paidOpen = false;
   var lastDeleted = null;
@@ -773,6 +816,34 @@
     });
   }
 
+  function buildChargeMessage(name, pendingItems, owed) {
+    var linhas = pendingItems
+      .slice()
+      .sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); })
+      .map(function (s) {
+        var sub = (s.quantidade || 0) * (s.precoUnitario || state.price);
+        return "- " + fmtDate(s.data) + ": " + s.quantidade + " tortinha" + (s.quantidade > 1 ? "s" : "") + " (" + fmtBRL(sub) + ")";
+      })
+      .join("\n");
+    return (
+      "Oi, " + name + "! 🥧\n\n" +
+      "Esta é uma mensagem automática do sistema de gerenciamento de tortinhas que eu criei para controlar as vendas fiado.\n\n" +
+      "Você tem tortinha(s) em aberto:\n" + linhas + "\n\n" +
+      "Total a pagar: " + fmtBRL(owed) + "\n\n" +
+      "Pra quitar, pode fazer o Pix pra:\n" +
+      "Chave: " + PIX_CHAVE + "\n" +
+      "Titular: " + PIX_TITULAR + "\n\n" +
+      "Obrigada! 💛"
+    );
+  }
+
+  function buildWhatsAppLink(name, pendingItems, owed) {
+    var phone = CONTATOS[normName(name)];
+    if (!phone || !pendingItems.length) return null;
+    var msg = buildChargeMessage(name, pendingItems, owed);
+    return "https://wa.me/" + phone + "?text=" + encodeURIComponent(msg);
+  }
+
   function lineHTML(sale) {
     var sub = (sale.quantidade || 0) * (sale.precoUnitario || state.price);
     var checked = !!sale.pago;
@@ -819,6 +890,28 @@
       render();
     });
     card.appendChild(head);
+
+    if (owed > 0) {
+      var chargeRow = document.createElement("div");
+      chargeRow.className = "charge-row";
+      var waLink = buildWhatsAppLink(name, pending, owed);
+      if (waLink) {
+        var chargeBtn = document.createElement("a");
+        chargeBtn.className = "charge-btn";
+        chargeBtn.href = waLink;
+        chargeBtn.target = "_blank";
+        chargeBtn.rel = "noopener";
+        chargeBtn.textContent = "📲 Cobrar no WhatsApp";
+        chargeBtn.addEventListener("click", function (e) { e.stopPropagation(); });
+        chargeRow.appendChild(chargeBtn);
+      } else {
+        var noPhone = document.createElement("span");
+        noPhone.className = "charge-missing";
+        noPhone.textContent = "Sem WhatsApp cadastrado pra cobrar";
+        chargeRow.appendChild(noPhone);
+      }
+      card.appendChild(chargeRow);
+    }
 
     if (isExpanded) {
       var body = document.createElement("div");
