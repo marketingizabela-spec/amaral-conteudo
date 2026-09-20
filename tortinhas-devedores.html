@@ -528,7 +528,7 @@
     <datalist id="nomes-conhecidos"></datalist>
     <div class="add-footer">
       <div class="subtotal-preview">Fica em <b id="subtotal-preview">R$ 8,50</b></div>
-      <button type="submit" id="submit-btn">Anotar</button>
+      <button type="submit" id="submit-btn" disabled>Carregando…</button>
     </div>
   </form>
 
@@ -922,13 +922,18 @@
   els.qtyInput.addEventListener("input", updateSubtotalPreview);
   els.nomeInput.addEventListener("input", renderChips);
 
+  var submitBtn = document.getElementById("submit-btn");
+
   document.getElementById("add-form").addEventListener("submit", function (e) {
     e.preventDefault();
     var nome = els.nomeInput.value.trim();
     var qty = parseInt(els.qtyInput.value, 10) || 1;
-    if (!nome || !store) return;
-    var btn = document.getElementById("submit-btn");
-    btn.disabled = true;
+    if (!nome) return;
+    if (!store) {
+      showToast("Ainda carregando, tenta de novo em um segundo");
+      return;
+    }
+    submitBtn.disabled = true;
     Promise.resolve(store.addSale({
       nome: nome,
       quantidade: qty,
@@ -937,8 +942,10 @@
       pago: false,
       pagoEm: null,
       criadoEm: Date.now()
-    })).finally(function () {
-      btn.disabled = false;
+    })).catch(function () {
+      showToast("Não deu pra salvar agora, tenta de novo");
+    }).finally(function () {
+      submitBtn.disabled = false;
     });
     els.nomeInput.value = "";
     els.qtyInput.value = "1";
@@ -989,11 +996,29 @@
 
   // ---------- boot ----------
   render();
+
+  function markReady() {
+    if (submitBtn.disabled && submitBtn.textContent === "Carregando…") {
+      submitBtn.textContent = "Anotar";
+    }
+    submitBtn.disabled = false;
+  }
+
+  var settled = false;
+  function settle(db) {
+    if (settled) return;
+    settled = true;
+    store = db ? makeDbStore(db) : makeLocalStore();
+    markReady();
+    render();
+  }
+
+  // Never leave the form stuck on "Carregando…" — fall back to the
+  // local-only store if the db capability hasn't answered in time.
+  setTimeout(function () { settle(null); }, 6000);
+
   (window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null))
     .catch(function () { return null; })
-    .then(function (db) {
-      store = db ? makeDbStore(db) : makeLocalStore();
-      render();
-    });
+    .then(settle);
 })();
 </script>
