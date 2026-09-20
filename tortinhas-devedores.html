@@ -228,6 +228,29 @@
   }
   #nome-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+  .name-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .name-chip {
+    border: 1.5px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .name-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .name-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper-raised);
+  }
+
   .stepper {
     display: flex;
     align-items: center;
@@ -493,6 +516,7 @@
 
   <form id="add-form">
     <div class="row-title">Anotar venda</div>
+    <div class="name-chips" id="name-chips"></div>
     <div class="field-row">
       <input id="nome-input" name="nome" type="text" placeholder="Nome de quem levou" autocomplete="off" list="nomes-conhecidos" required />
       <div class="stepper">
@@ -532,6 +556,7 @@
   "use strict";
 
   var state = { sales: [], price: 8.5, ready: false, localMode: false };
+  var QUICK_NAMES = ["Carol", "Daniel", "Gabi", "Polly"];
   var expanded = new Set();
   var paidOpen = false;
   var lastDeleted = null;
@@ -728,6 +753,26 @@
     });
   }
 
+  function renderChips() {
+    var wrap = document.getElementById("name-chips");
+    if (!wrap) return;
+    var current = els.nomeInput.value.trim().toLowerCase();
+    wrap.innerHTML = "";
+    QUICK_NAMES.forEach(function (n) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "name-chip" + (current === n.toLowerCase() ? " active" : "");
+      btn.textContent = n;
+      btn.addEventListener("click", function () {
+        els.nomeInput.value = n;
+        renderChips();
+        els.qtyInput.focus();
+        els.qtyInput.select();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
   function lineHTML(sale) {
     var sub = (sale.quantidade || 0) * (sale.precoUnitario || state.price);
     var checked = !!sale.pago;
@@ -800,6 +845,7 @@
   function render() {
     renderPriceSlot();
     renderNames();
+    renderChips();
 
     var groups = groupByName(state.sales);
     var pendingGroups = [];
@@ -874,6 +920,7 @@
     updateSubtotalPreview();
   });
   els.qtyInput.addEventListener("input", updateSubtotalPreview);
+  els.nomeInput.addEventListener("input", renderChips);
 
   document.getElementById("add-form").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -896,6 +943,7 @@
     els.nomeInput.value = "";
     els.qtyInput.value = "1";
     updateSubtotalPreview();
+    renderChips();
     els.nomeInput.focus();
   });
 
