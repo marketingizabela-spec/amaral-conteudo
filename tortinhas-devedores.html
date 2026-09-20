@@ -943,15 +943,23 @@
       criadoEm: Date.now()
     };
 
+    // Show it in the list immediately — don't wait on the storage
+    // round-trip, so the click always has visible, instant feedback.
+    var optimistic = Object.assign(
+      { id: "pending-" + Date.now() + Math.random().toString(36).slice(2, 7) },
+      saleData
+    );
+    state.sales.push(optimistic);
+    render();
+
     if (store) {
       Promise.resolve(store.addSale(saleData)).catch(function () {
+        state.sales = state.sales.filter(function (s) { return s.id !== optimistic.id; });
+        render();
         showToast("Não deu pra salvar agora, tenta de novo");
       });
     } else {
-      saleData.id = "pending-" + Date.now() + Math.random().toString(36).slice(2, 7);
-      state.sales.push(saleData);
-      queuedSales.push(saleData);
-      render();
+      queuedSales.push(optimistic);
     }
 
     els.nomeInput.value = "";
