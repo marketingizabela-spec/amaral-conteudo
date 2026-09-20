@@ -190,16 +190,18 @@
   }
 
   .storage-note {
-    font-size: 0.72rem;
-    color: var(--ink-faint);
+    font-size: 0.82rem;
+    color: var(--gold);
+    background: var(--gold-soft);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 10px 14px;
     display: flex;
-    align-items: center;
-    gap: 6px;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.35;
   }
-  .storage-note .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--gold);
-  }
+  .storage-note strong { display: block; color: var(--ink); }
 
   form#add-form {
     background: var(--paper-raised);
@@ -539,8 +541,10 @@
       <div class="amount" id="total-amount">—</div>
     </div>
     <div class="storage-note" id="storage-note" hidden>
-      <span class="dot"></span>
-      <span>Modo local — salvo só neste navegador</span>
+      <span>⚠️
+        <strong>Salvando só neste aparelho</strong>
+        Abrindo assim (atalho/link direto), não dá pra sincronizar com sua conta. Pra não perder nada, abra pelo site ou app do Claude em vez do atalho.
+      </span>
     </div>
   </header>
 
