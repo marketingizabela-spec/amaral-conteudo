@@ -541,10 +541,7 @@
       <div class="amount" id="total-amount">—</div>
     </div>
     <div class="storage-note" id="storage-note" hidden>
-      <span>⚠️
-        <strong>Salvando só neste aparelho</strong>
-        Abrindo assim (atalho/link direto), não dá pra sincronizar com sua conta. Pra não perder nada, abra pelo site ou app do Claude em vez do atalho.
-      </span>
+      <span id="storage-note-text"></span>
     </div>
   </header>
 
@@ -591,6 +588,10 @@
 
   var state = { sales: [], price: 8.5, ready: false, localMode: false };
   var QUICK_NAMES = ["Carol", "Daniel", "Gabi", "Polly"];
+  // window.claude only ever exists when served by claude.ai (even if a
+  // shortcut/direct link there still can't reach the account's storage);
+  // a self-hosted copy (GitHub Pages, a saved file) never has it at all.
+  var IS_CLAUDE_HOST = !!window.claude;
 
   var PIX_CHAVE = "Olicamila2014@gmail.com";
   var PIX_TITULAR = "Elizângela Camila de Oliveira";
@@ -1020,6 +1021,11 @@
     }
 
     els.storageNote.hidden = !state.localMode;
+    if (state.localMode) {
+      document.getElementById("storage-note-text").innerHTML = IS_CLAUDE_HOST
+        ? "⚠️ <strong>Salvando só neste aparelho</strong>Abrindo assim (atalho/link direto), não dá pra sincronizar com sua conta. Pra não perder nada, abra pelo site ou app do Claude em vez do atalho."
+        : "💾 <strong>Site próprio — salva neste navegador</strong>Cada anotação já fica salva automaticamente aqui. Só não limpe os dados de navegação deste site, senão perde o que tiver guardado.";
+    }
     updateSubtotalPreview();
   }
 
