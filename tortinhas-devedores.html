@@ -792,16 +792,23 @@
     var totalQty = pending.reduce(function (sum, s) { return sum + (s.quantidade || 0); }, 0);
     var isExpanded = expanded.has(name);
     var sorted = sales.slice().sort(function (a, b) { return (b.criadoEm || 0) - (a.criadoEm || 0); });
+    var firstDate = sales.reduce(function (min, s) {
+      return (!min || (s.data && s.data < min)) ? s.data : min;
+    }, null);
 
     var card = document.createElement("div");
     card.className = "person-card";
 
     var head = document.createElement("div");
     head.className = "person-head";
+    var metaText = owed > 0
+      ? totalQty + " tortinha" + (totalQty > 1 ? "s" : "") + " pendente" + (totalQty > 1 ? "s" : "")
+      : "tudo quitado";
+    if (firstDate) metaText += " · desde " + fmtDate(firstDate);
     head.innerHTML =
       '<div class="person-info">' +
         '<div class="person-name">' + escapeHTML(name) + '</div>' +
-        '<div class="person-meta">' + (owed > 0 ? totalQty + " tortinha" + (totalQty > 1 ? "s" : "") + " pendente" + (totalQty > 1 ? "s" : "") : "tudo quitado") + '</div>' +
+        '<div class="person-meta">' + metaText + '</div>' +
       '</div>' +
       '<div class="person-amount">' +
         '<div class="value' + (owed === 0 ? " paid-off" : "") + '">' + (owed > 0 ? fmtBRL(owed) : "✓ pago") + '</div>' +
