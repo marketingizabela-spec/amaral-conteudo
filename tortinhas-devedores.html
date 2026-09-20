@@ -528,7 +528,7 @@
     <datalist id="nomes-conhecidos"></datalist>
     <div class="add-footer">
       <div class="subtotal-preview">Fica em <b id="subtotal-preview">R$ 8,50</b></div>
-      <button type="submit" id="submit-btn" disabled>Carregando…</button>
+      <button type="submit" id="submit-btn">Anotar</button>
     </div>
   </form>
 
@@ -922,19 +922,18 @@
   els.qtyInput.addEventListener("input", updateSubtotalPreview);
   els.nomeInput.addEventListener("input", renderChips);
 
-  var submitBtn = document.getElementById("submit-btn");
+  // Sales typed before the storage backend has finished connecting are
+  // held here so the list updates instantly no matter what; settle()
+  // flushes them into real storage once it's ready.
+  var queuedSales = [];
 
   document.getElementById("add-form").addEventListener("submit", function (e) {
     e.preventDefault();
     var nome = els.nomeInput.value.trim();
     var qty = parseInt(els.qtyInput.value, 10) || 1;
     if (!nome) return;
-    if (!store) {
-      showToast("Ainda carregando, tenta de novo em um segundo");
-      return;
-    }
-    submitBtn.disabled = true;
-    Promise.resolve(store.addSale({
+
+    var saleData = {
       nome: nome,
       quantidade: qty,
       precoUnitario: state.price,
@@ -942,11 +941,19 @@
       pago: false,
       pagoEm: null,
       criadoEm: Date.now()
-    })).catch(function () {
-      showToast("Não deu pra salvar agora, tenta de novo");
-    }).finally(function () {
-      submitBtn.disabled = false;
-    });
+    };
+
+    if (store) {
+      Promise.resolve(store.addSale(saleData)).catch(function () {
+        showToast("Não deu pra salvar agora, tenta de novo");
+      });
+    } else {
+      saleData.id = "pending-" + Date.now() + Math.random().toString(36).slice(2, 7);
+      state.sales.push(saleData);
+      queuedSales.push(saleData);
+      render();
+    }
+
     els.nomeInput.value = "";
     els.qtyInput.value = "1";
     updateSubtotalPreview();
@@ -997,24 +1004,27 @@
   // ---------- boot ----------
   render();
 
-  function markReady() {
-    if (submitBtn.disabled && submitBtn.textContent === "Carregando…") {
-      submitBtn.textContent = "Anotar";
-    }
-    submitBtn.disabled = false;
-  }
-
   var settled = false;
   function settle(db) {
     if (settled) return;
     settled = true;
     store = db ? makeDbStore(db) : makeLocalStore();
-    markReady();
+    // makeLocalStore() reloads state.sales from localStorage, which would
+    // silently drop anything typed while we were still connecting — so
+    // replay those into the now-real store instead of losing them.
+    queuedSales.forEach(function (queued) {
+      state.sales = state.sales.filter(function (s) { return s.id !== queued.id; });
+      var copy = Object.assign({}, queued);
+      delete copy.id;
+      store.addSale(copy);
+    });
+    queuedSales = [];
     render();
   }
 
-  // Never leave the form stuck on "Carregando…" — fall back to the
-  // local-only store if the db capability hasn't answered in time.
+  // If the db capability never answers, don't leave the page stuck
+  // waiting forever — fall back to a local-only store after a few
+  // seconds so the app is always usable.
   setTimeout(function () { settle(null); }, 6000);
 
   (window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null))
