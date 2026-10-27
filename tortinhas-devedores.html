@@ -264,6 +264,48 @@
     color: var(--paper-raised);
   }
 
+  .product-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .product-options[hidden] { display: none; }
+  .product-hint {
+    grid-column: 1 / -1;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .product-opt {
+    border: 1.5px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 14px;
+    padding: 12px 10px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+  }
+  .product-opt .p-price {
+    font-size: 0.82rem;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+  .product-opt:hover { border-color: var(--accent); }
+  .product-opt.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper-raised);
+  }
+  .product-opt.active .p-price { color: var(--paper-raised); }
+  .price-pill { cursor: default; }
+
   .stepper {
     display: flex;
     align-items: center;
@@ -563,9 +605,10 @@
       </div>
     </div>
     <datalist id="nomes-conhecidos"></datalist>
+    <div class="product-options" id="product-options" hidden></div>
     <div class="add-footer">
-      <div class="subtotal-preview">Fica em <b id="subtotal-preview">R$ 8,50</b></div>
-      <button type="submit" id="submit-btn">Anotar</button>
+      <div class="subtotal-preview" id="subtotal-wrap">Escolha o nome</div>
+      <button type="submit" id="submit-btn" disabled>Anotar</button>
     </div>
   </form>
 
@@ -608,6 +651,30 @@
     gabi: "5531972266852"
   };
 
+  var PRODUTOS = {
+    tortinha: { nome: "Tortinha", singular: "tortinha", plural: "tortinhas", preco: 8.5 },
+    palha: { nome: "Palha italiana", singular: "palha italiana", plural: "palhas italianas", preco: 6.5 }
+  };
+  var selectedProduct = null;
+
+  // Old entries (before products existed) were all tortinhas.
+  function prodOf(s) { return PRODUTOS[s.produto] ? s.produto : "tortinha"; }
+  function itemLabel(key, qty) {
+    var p = PRODUTOS[key];
+    return qty + " " + (qty > 1 ? p.plural : p.singular);
+  }
+  function summarize(items) {
+    var counts = {};
+    items.forEach(function (s) {
+      var k = prodOf(s);
+      counts[k] = (counts[k] || 0) + (s.quantidade || 0);
+    });
+    return Object.keys(PRODUTOS)
+      .filter(function (k) { return counts[k]; })
+      .map(function (k) { return itemLabel(k, counts[k]); })
+      .join(" + ");
+  }
+
   function normName(s) {
     return (s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
@@ -639,24 +706,24 @@
   // opened through claude.ai — so today's real debts aren't lost in
   // the switch. Never touched again once storage has anything in it.
   var SEED_SALES = [
-    { id: "seed-daniel-0915", nome: "Daniel", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000000 },
-    { id: "seed-polly-1021", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
-    { id: "seed-polly-1020a", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610201 },
-    { id: "seed-polly-1020b", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610202 },
-    { id: "seed-polly-1015", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
-    { id: "seed-polly-1014a", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610141 },
-    { id: "seed-polly-1014b", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610142 },
-    { id: "seed-polly-1013a", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610131 },
-    { id: "seed-polly-1013b", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610132 },
-    { id: "seed-polly-1001", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-01", pago: false, pagoEm: null, criadoEm: 202610010 },
-    { id: "seed-gabi-1022", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-22", pago: false, pagoEm: null, criadoEm: 202610220 },
-    { id: "seed-gabi-1021a", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610211 },
-    { id: "seed-gabi-1021b", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610212 },
-    { id: "seed-gabi-1021c", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610213 },
-    { id: "seed-gabi-1020", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610200 },
-    { id: "seed-carol-1021", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
-    { id: "seed-carol-1015", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
-    { id: "seed-carol-1014", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610140 }
+    { id: "seed-daniel-0915", nome: "Daniel", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000000 },
+    { id: "seed-polly-1021", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
+    { id: "seed-polly-1020a", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610201 },
+    { id: "seed-polly-1020b", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610202 },
+    { id: "seed-polly-1015", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
+    { id: "seed-polly-1014a", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610141 },
+    { id: "seed-polly-1014b", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610142 },
+    { id: "seed-polly-1013a", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610131 },
+    { id: "seed-polly-1013b", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610132 },
+    { id: "seed-polly-1001", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-01", pago: false, pagoEm: null, criadoEm: 202610010 },
+    { id: "seed-gabi-1022", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-22", pago: false, pagoEm: null, criadoEm: 202610220 },
+    { id: "seed-gabi-1021a", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610211 },
+    { id: "seed-gabi-1021b", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610212 },
+    { id: "seed-gabi-1021c", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610213 },
+    { id: "seed-gabi-1020", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610200 },
+    { id: "seed-carol-1021", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
+    { id: "seed-carol-1015", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
+    { id: "seed-carol-1014", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610140 }
   ];
 
   function localLoad() {
@@ -774,7 +841,9 @@
     nomes: document.getElementById("nomes-conhecidos"),
     nomeInput: document.getElementById("nome-input"),
     qtyInput: document.getElementById("qty-input"),
-    subtotalPreview: document.getElementById("subtotal-preview")
+    subtotalWrap: document.getElementById("subtotal-wrap"),
+    productOptions: document.getElementById("product-options"),
+    submitBtn: document.getElementById("submit-btn")
   };
 
   function groupByName(sales) {
@@ -790,41 +859,38 @@
 
   function renderPriceSlot() {
     els.priceSlot.innerHTML = "";
-    var pill = document.createElement("button");
-    pill.type = "button";
+    var pill = document.createElement("div");
     pill.className = "price-pill";
-    pill.textContent = fmtBRL(state.price) + " /un";
-    pill.addEventListener("click", function () { renderPriceEdit(); });
+    pill.textContent = "Tortinha " + fmtBRL(PRODUTOS.tortinha.preco) + " · Palha " + fmtBRL(PRODUTOS.palha.preco);
     els.priceSlot.appendChild(pill);
   }
 
-  function renderPriceEdit() {
-    els.priceSlot.innerHTML = "";
-    var wrap = document.createElement("div");
-    wrap.className = "price-edit";
-    var label = document.createElement("span");
-    label.textContent = "R$";
-    var input = document.createElement("input");
-    input.type = "number";
-    input.step = "0.10";
-    input.min = "0";
-    input.value = state.price.toFixed(2);
-    var btn = document.createElement("button");
-    btn.textContent = "Ok";
-    btn.addEventListener("click", function () {
-      var v = parseFloat(input.value);
-      if (!isNaN(v) && v > 0) store.setPrice(Math.round(v * 100) / 100);
-      renderPriceSlot();
-    });
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { e.preventDefault(); btn.click(); }
-    });
-    wrap.appendChild(label);
-    wrap.appendChild(input);
-    wrap.appendChild(btn);
-    els.priceSlot.appendChild(wrap);
-    input.focus();
-    input.select();
+  function renderProducts() {
+    var hasName = !!els.nomeInput.value.trim();
+    if (!hasName) selectedProduct = null;
+    els.productOptions.hidden = !hasName;
+    els.productOptions.innerHTML = "";
+    if (hasName) {
+      var hint = document.createElement("div");
+      hint.className = "product-hint";
+      hint.textContent = "O que " + els.nomeInput.value.trim() + " levou?";
+      els.productOptions.appendChild(hint);
+      Object.keys(PRODUTOS).forEach(function (k) {
+        var p = PRODUTOS[k];
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "product-opt" + (selectedProduct === k ? " active" : "");
+        btn.setAttribute("aria-pressed", selectedProduct === k ? "true" : "false");
+        btn.innerHTML = '<span>' + p.nome + '</span><span class="p-price">' + fmtBRL(p.preco) + '</span>';
+        btn.addEventListener("click", function () {
+          selectedProduct = k;
+          renderProducts();
+        });
+        els.productOptions.appendChild(btn);
+      });
+    }
+    els.submitBtn.disabled = !(hasName && selectedProduct);
+    updateSubtotalPreview();
   }
 
   function renderNames() {
@@ -849,9 +915,9 @@
       btn.textContent = n;
       btn.addEventListener("click", function () {
         els.nomeInput.value = n;
+        selectedProduct = null;
         renderChips();
-        els.qtyInput.focus();
-        els.qtyInput.select();
+        renderProducts();
       });
       wrap.appendChild(btn);
     });
@@ -863,13 +929,13 @@
       .sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); })
       .map(function (s) {
         var sub = (s.quantidade || 0) * (s.precoUnitario || state.price);
-        return "- " + fmtDate(s.data) + ": " + s.quantidade + " tortinha" + (s.quantidade > 1 ? "s" : "") + " (" + fmtBRL(sub) + ")";
+        return "- " + fmtDate(s.data) + ": " + itemLabel(prodOf(s), s.quantidade) + " (" + fmtBRL(sub) + ")";
       })
       .join("\n");
     return (
       "Oi, " + name + "! 🥧\n\n" +
       "Esta é uma mensagem automática do sistema de gerenciamento de tortinhas que eu criei para controlar as vendas fiado.\n\n" +
-      "Você tem tortinha(s) em aberto:\n" + linhas + "\n\n" +
+      "Você tem doces em aberto:\n" + linhas + "\n\n" +
       "Total a pagar: " + fmtBRL(owed) + "\n\n" +
       "Pra quitar, pode fazer o Pix pra:\n" +
       "Chave: " + PIX_CHAVE + "\n" +
@@ -891,7 +957,7 @@
     return (
       '<div class="line-item' + (checked ? " is-paid" : "") + '" data-id="' + sale.id + '">' +
         '<button type="button" class="line-check' + (checked ? " checked" : "") + '" data-action="toggle" data-id="' + sale.id + '" aria-label="Marcar pago">' + (checked ? "✓" : "") + '</button>' +
-        '<div class="line-text"><span class="qty">' + sale.quantidade + ' tortinha' + (sale.quantidade > 1 ? "s" : "") + '</span> · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
+        '<div class="line-text"><span class="qty">' + itemLabel(prodOf(sale), sale.quantidade) + '</span> · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
         '<div class="line-sub">' + fmtBRL(sub) + '</div>' +
         '<button type="button" class="line-del" data-action="delete" data-id="' + sale.id + '" aria-label="Remover">✕</button>' +
       '</div>'
@@ -914,7 +980,7 @@
     var head = document.createElement("div");
     head.className = "person-head";
     var metaText = owed > 0
-      ? totalQty + " tortinha" + (totalQty > 1 ? "s" : "") + " pendente" + (totalQty > 1 ? "s" : "")
+      ? summarize(pending) + " pendente" + (totalQty > 1 ? "s" : "")
       : "tudo quitado";
     if (firstDate) metaText += " · desde " + fmtDate(firstDate);
     head.innerHTML =
@@ -987,6 +1053,7 @@
     renderPriceSlot();
     renderNames();
     renderChips();
+    renderProducts();
 
     var groups = groupByName(state.sales);
     var pendingGroups = [];
@@ -1051,7 +1118,13 @@
 
   function updateSubtotalPreview() {
     var qty = parseInt(els.qtyInput.value, 10) || 1;
-    els.subtotalPreview.textContent = fmtBRL(qty * state.price);
+    if (!els.nomeInput.value.trim()) {
+      els.subtotalWrap.textContent = "Escolha o nome";
+    } else if (!selectedProduct) {
+      els.subtotalWrap.textContent = "Escolha o produto";
+    } else {
+      els.subtotalWrap.innerHTML = "Fica em <b>" + fmtBRL(qty * PRODUTOS[selectedProduct].preco) + "</b>";
+    }
   }
 
   // ---------- events ----------
@@ -1066,52 +1139,74 @@
     updateSubtotalPreview();
   });
   els.qtyInput.addEventListener("input", updateSubtotalPreview);
-  els.nomeInput.addEventListener("input", renderChips);
+  els.nomeInput.addEventListener("input", function () {
+    renderChips();
+    renderProducts();
+  });
 
   // Sales typed before the storage backend has finished connecting are
   // held here so the list updates instantly no matter what; settle()
   // flushes them into real storage once it's ready.
   var queuedSales = [];
+  var submitLocked = false;
 
   document.getElementById("add-form").addEventListener("submit", function (e) {
     e.preventDefault();
+    // Ignore double taps / repeated Enter while a sale is being recorded.
+    if (submitLocked) return;
     var nome = els.nomeInput.value.trim();
     var qty = parseInt(els.qtyInput.value, 10) || 1;
     if (!nome) return;
+    if (!selectedProduct) {
+      showToast("Escolha Tortinha ou Palha italiana");
+      return;
+    }
 
     var saleData = {
       nome: nome,
+      produto: selectedProduct,
       quantidade: qty,
-      precoUnitario: state.price,
+      precoUnitario: PRODUTOS[selectedProduct].preco,
       data: todayISO(),
       pago: false,
       pagoEm: null,
       criadoEm: Date.now()
     };
 
-    // Show it in the list immediately — don't wait on the storage
-    // round-trip, so the click always has visible, instant feedback.
-    var optimistic = Object.assign(
-      { id: "pending-" + Date.now() + Math.random().toString(36).slice(2, 7) },
-      saleData
-    );
-    state.sales.push(optimistic);
-    render();
+    submitLocked = true;
+    els.submitBtn.disabled = true;
+    setTimeout(function () { submitLocked = false; renderProducts(); }, 800);
 
-    if (store) {
-      Promise.resolve(store.addSale(saleData)).catch(function () {
-        state.sales = state.sales.filter(function (s) { return s.id !== optimistic.id; });
-        render();
-        showToast("Não deu pra salvar agora, tenta de novo");
-      });
+    if (store && state.localMode) {
+      // Local storage adds the sale to the list itself, instantly —
+      // adding a preview copy too is what caused the double entry.
+      store.addSale(saleData);
     } else {
-      queuedSales.push(optimistic);
+      // Show it in the list immediately — don't wait on the storage
+      // round-trip. The synced list replaces this preview when it arrives.
+      var optimistic = Object.assign(
+        { id: "pending-" + Date.now() + Math.random().toString(36).slice(2, 7) },
+        saleData
+      );
+      state.sales.push(optimistic);
+      render();
+
+      if (store) {
+        Promise.resolve(store.addSale(saleData)).catch(function () {
+          state.sales = state.sales.filter(function (s) { return s.id !== optimistic.id; });
+          render();
+          showToast("Não deu pra salvar agora, tenta de novo");
+        });
+      } else {
+        queuedSales.push(optimistic);
+      }
     }
 
     els.nomeInput.value = "";
     els.qtyInput.value = "1";
-    updateSubtotalPreview();
+    selectedProduct = null;
     renderChips();
+    renderProducts();
     els.nomeInput.focus();
   });
 
