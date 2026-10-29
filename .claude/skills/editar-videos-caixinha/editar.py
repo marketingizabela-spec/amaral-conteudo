@@ -179,7 +179,8 @@ def cmd_analisar(a):
 
 
 # -------------------------------------------------------------- renderizar
-def montar_filtro(w, h, silenciar_rel, a):
+def montar_filtro(w, reduzir, silenciar_rel, a):
+    """w = largura do vídeo de saída; reduzir=True escala o vídeo para essa largura."""
     larg = int(w * a.largura) // 2 * 2
     if a.posicao == "topo":
         y = f"main_h*{a.margem}"
@@ -193,8 +194,10 @@ def montar_filtro(w, h, silenciar_rel, a):
         audio = f"[0:a]volume=0:enable='{expr}'[a]"
     else:
         audio = "[0:a]anull[a]"
-    return (f"{audio};[1:v]scale={larg}:-1,format=rgba[c];"
-            f"[0:v][c]overlay=x=(main_w-overlay_w)/2:y={y}:shortest=1{enable}[v]")
+    base = "[base]" if reduzir else "[0:v]"
+    pre = f"[0:v]scale={w}:-2[base];" if reduzir else ""
+    return (f"{audio};{pre}[1:v]scale={larg}:-1,format=rgba[c];"
+            f"{base}[c]overlay=x=(main_w-overlay_w)/2:y={y}:shortest=1{enable}[v]")
 
 
 def cmd_renderizar(a):
@@ -219,8 +222,11 @@ def cmd_renderizar(a):
             if e > inicio:
                 sil.append((max(0.0, s - inicio), e - inicio))
         w, h = probe_dims(video)
+        reduzir = bool(a.largura_saida) and w > a.largura_saida
+        if reduzir:
+            w = a.largura_saida // 2 * 2
         script = saida / f".{video.stem}.filtro.txt"
-        script.write_text(montar_filtro(w, h, sil, a), encoding="utf-8")
+        script.write_text(montar_filtro(w, reduzir, sil, a), encoding="utf-8")
         destino = saida / f"{video.stem}_editado.mp4"
         print(f"Renderizando {nome} -> {destino.name} (caixinha {int(r['caixinha']):02d})", flush=True)
         run(["ffmpeg", "-y", "-v", "error", "-ss", f"{inicio:.3f}", "-i", str(video),
@@ -230,6 +236,32 @@ def cmd_renderizar(a):
              "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-shortest", str(destino)])
         script.unlink(missing_ok=True)
     print("Pronto.")
+
+
+# ---------------------------------------------------------------- planilha
+def ler_legendas(path):
+    txt = Path(path).read_text(encoding="utf-8")
+    achados = re.findall(r"\*\*(\d+) · (.+?)\*\*\n(.+)", txt)
+    return {int(n): (titulo.strip(), legenda.strip()) for n, titulo, legenda in achados}
+
+
+def cmd_planilha(a):
+    import datetime as dt
+    legendas = ler_legendas(a.legendas)
+    with open(a.plano, newline="", encoding="utf-8-sig") as f:
+        linhas = [r for r in csv.DictReader(f, delimiter=";") if r.get("caixinha")]
+    horas = [h.strip() for h in a.horas.split(",") if h.strip()]
+    dia0 = dt.date.fromisoformat(a.inicio) if a.inicio else dt.date.today() + dt.timedelta(days=1)
+    with open(a.saida, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f, delimiter=";")
+        w.writerow(["arquivo_editado", "caixinha", "pergunta", "legenda", "data", "hora"])
+        for i, r in enumerate(linhas):
+            n = int(r["caixinha"])
+            titulo, legenda = legendas.get(n, ("", "(sem legenda para esta caixinha)"))
+            dia = dia0 + dt.timedelta(days=i // len(horas))
+            w.writerow([Path(r["arquivo"]).stem + "_editado.mp4", f"{n:02d}", titulo, legenda,
+                        dia.strftime("%d/%m/%Y"), horas[i % len(horas)]])
+    print(f"{len(linhas)} postagens em {a.saida}")
 
 
 def main():
@@ -251,8 +283,17 @@ def main():
     rd.add_argument("--posicao", choices=["topo", "centro", "baixo"], default="topo")
     rd.add_argument("--largura", type=float, default=0.9, help="largura da caixinha (fração do vídeo)")
     rd.add_argument("--margem", type=float, default=0.08, help="distância da borda (fração da altura)")
+    rd.add_argument("--largura-saida", type=int, default=1080,
+                    help="largura máxima de saída em pixels (1080 = 1080x1920 no vertical); 0 mantém o original")
     rd.add_argument("--caixinha-segundos", type=float, default=0, help="0 = o vídeo todo")
     rd.set_defaults(fn=cmd_renderizar)
+    pl = sub.add_parser("planilha", help="monta a planilha de postagem (vídeo, legenda, data e hora)")
+    pl.add_argument("--plano", default="plano.csv")
+    pl.add_argument("--legendas", default=str(Path(__file__).with_name("legendas-seo-caixinhas.md")))
+    pl.add_argument("--saida", default="postagens.csv")
+    pl.add_argument("--inicio", help="primeiro dia, AAAA-MM-DD (padrão: amanhã)")
+    pl.add_argument("--horas", default="12:00", help="horários por dia, ex.: 09:00,13:00,19:00")
+    pl.set_defaults(fn=cmd_planilha)
     a = p.parse_args()
     a.fn(a)
 

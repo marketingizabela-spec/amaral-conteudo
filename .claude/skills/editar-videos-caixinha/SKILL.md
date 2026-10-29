@@ -22,11 +22,13 @@ As imagens `01.png` a `50.png` (fundo transparente, 1612x638) vêm num zip envia
    - Linhas com `CONFERIR CAIXINHA` ou `caixinha repetida` precisam de olhar humano.
 3. **Renderizar**:
    `python editar.py renderizar --videos PASTA --caixinhas PASTA_PNGS --plano plano.csv --saida editados`
-4. Entregar os `IMG_xxxx_editado.mp4`.
+4. Entregar os `IMG_xxxx_editado.mp4`. A saída sai em 1080x1920 (H.264/AAC), bom para Reels; `--largura-saida 0` mantém a resolução original.
+5. **Planilha de postagem** (Meta Business Suite): `python editar.py planilha --plano plano.csv --saida postagens.csv --inicio AAAA-MM-DD --horas 09:00,19:00`.
+   Gera uma linha por vídeo com legenda SEO (de `legendas-seo-caixinhas.md`), data e hora sugeridas.
 
 ## Padrões (ajustar conforme a Izabela pedir)
 - Caixinha no **topo**, centralizada, 90% da largura, durante o vídeo todo (`--posicao`, `--largura`, `--margem`, `--caixinha-segundos`).
-- Saída H.264/AAC, CRF 18.
+- Saída H.264/AAC, CRF 18, largura 1080.
 - A separação de vozes assume que **a Izabela fala primeiro**. Se errar, usar `--voz-minha amostra.wav` (áudio curto só com a voz dela) ou ajustar `--limiar`.
 - Se não houver transcrição (sem internet para o Whisper), preencher o `plano.csv` à mão e usar só `renderizar`.
 
@@ -35,4 +37,5 @@ Python 3.11 + ffmpeg + `pip install faster-whisper resemblyzer rapidfuzz`. Os co
 
 ## Histórico de ajustes
 Registre aqui o que deu errado e o que foi corrigido, para a próxima edição já sair melhor.
-- (vazio) O script ainda não foi testado com os vídeos reais. No primeiro teste, anotar: cortes certos? vozes trocadas? caixinha certa? posição/tamanho bons?
+- 2026-10-29: `renderizar` testado com um clipe real de iPhone (4K HEVC, girado, 2 s): saiu 1080x1920, caixinha no topo, áudio ok. `analisar` (Whisper + separação de vozes) **ainda não foi testado**: o Hugging Face estava bloqueado no ambiente.
+- (pendente) O script ainda não foi testado com os vídeos longos reais. No primeiro teste, anotar: cortes certos? vozes trocadas? caixinha certa? posição/tamanho bons?
