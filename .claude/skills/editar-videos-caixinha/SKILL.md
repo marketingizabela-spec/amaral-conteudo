@@ -22,13 +22,13 @@ As imagens `01.png` a `50.png` (fundo transparente, 1612x638) vêm num zip envia
    - Linhas com `CONFERIR CAIXINHA` ou `caixinha repetida` precisam de olhar humano.
 3. **Renderizar**:
    `python editar.py renderizar --videos PASTA --caixinhas PASTA_PNGS --plano plano.csv --saida editados`
-4. Entregar os `IMG_xxxx_editado.mp4`. A saída sai em 1080x1920 (H.264/AAC), bom para Reels; `--largura-saida 0` mantém a resolução original.
+4. Entregar os `IMG_xxxx_editado.mp4`. A saída mantém a resolução original do vídeo (a Izabela não quer que o vídeo seja alterado além de corte, voz e caixinha). Só reduza com `--largura-saida 1080` se ela pedir.
 5. **Planilha de postagem** (Meta Business Suite): `python editar.py planilha --plano plano.csv --saida postagens.csv --inicio AAAA-MM-DD --horas 09:00,19:00`.
    Gera uma linha por vídeo com legenda SEO (de `legendas-seo-caixinhas.md`), data e hora sugeridas.
 
 ## Padrões (ajustar conforme a Izabela pedir)
 - Caixinha no **topo**, centralizada, 90% da largura, durante o vídeo todo (`--posicao`, `--largura`, `--margem`, `--caixinha-segundos`).
-- Saída H.264/AAC, CRF 18, largura 1080.
+- Saída H.264/AAC, CRF 18, resolução original (não redimensionar sem ela pedir).
 - A separação de vozes assume que **a Izabela fala primeiro**. Se errar, usar `--voz-minha amostra.wav` (áudio curto só com a voz dela) ou ajustar `--limiar`.
 - Se não houver transcrição (sem internet para o Whisper), preencher o `plano.csv` à mão e usar só `renderizar`.
 

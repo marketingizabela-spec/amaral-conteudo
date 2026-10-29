@@ -283,8 +283,8 @@ def main():
     rd.add_argument("--posicao", choices=["topo", "centro", "baixo"], default="topo")
     rd.add_argument("--largura", type=float, default=0.9, help="largura da caixinha (fração do vídeo)")
     rd.add_argument("--margem", type=float, default=0.08, help="distância da borda (fração da altura)")
-    rd.add_argument("--largura-saida", type=int, default=1080,
-                    help="largura máxima de saída em pixels (1080 = 1080x1920 no vertical); 0 mantém o original")
+    rd.add_argument("--largura-saida", type=int, default=0,
+                    help="reduz o vídeo para essa largura (ex.: 1080); 0 (padrão) mantém a resolução original")
     rd.add_argument("--caixinha-segundos", type=float, default=0, help="0 = o vídeo todo")
     rd.set_defaults(fn=cmd_renderizar)
     pl = sub.add_parser("planilha", help="monta a planilha de postagem (vídeo, legenda, data e hora)")
