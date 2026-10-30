@@ -96,7 +96,7 @@ def topo_do_cabelo(video, inicio, fim):
                     break
             if len(rostos):
                 x, y, w, h = max(rostos, key=lambda r: r[2] * r[3])
-                topos.append((y - 0.40 * h) / quadro.shape[0])  # cabelo/topete acima da testa
+                topos.append((y - 0.30 * h) / quadro.shape[0])  # cabelo/topete acima da testa
     return min(topos) if topos else None
 
 
