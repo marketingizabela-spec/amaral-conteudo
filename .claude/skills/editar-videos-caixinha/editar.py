@@ -223,7 +223,32 @@ def cmd_analisar(a):
 
 
 # -------------------------------------------------------------- renderizar
-def montar_filtro(w, reduzir, silenciar_rel, a, frac, margem, so_video=False):
+# HLG (HDR do iPhone) -> SDR BT.709, só para o modo --sdr e para as imagens de prévia
+TONEMAP = ("zscale=transfer=linear:npl=1000,format=gbrpf32le,zscale=primaries=bt709,"
+           "tonemap=tonemap=mobius:desat=0,zscale=transfer=bt709:matrix=bt709:range=tv,format=yuv420p")
+
+
+def probe_cor(video):
+    out = run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+               "stream=color_transfer,pix_fmt", "-of", "json", str(video)])
+    st = json.loads(out)["streams"][0]
+    return st.get("color_transfer", ""), st.get("pix_fmt", "")
+
+
+def escolher_modo(video, a, nome):
+    """'normal' (SDR), 'hlg' (mantém o HDR original) ou 'sdr' (converte HDR para SDR)."""
+    trc, _ = probe_cor(video)
+    if a.sdr:
+        return "sdr" if trc in ("arib-std-b67", "smpte2084") else "normal"
+    if trc == "arib-std-b67":
+        return "hlg"
+    if trc == "smpte2084":
+        print(f"  AVISO {nome}: HDR PQ; convertendo para SDR.")
+        return "sdr"
+    return "normal"
+
+
+def montar_filtro(w, reduzir, silenciar_rel, a, frac, margem, so_video=False, modo="normal"):
     """w = largura do vídeo de saída; reduzir=True escala o vídeo para essa largura."""
     larg = int(w * frac) // 2 * 2
     if a.posicao == "topo":
@@ -238,10 +263,26 @@ def montar_filtro(w, reduzir, silenciar_rel, a, frac, margem, so_video=False):
         audio = f"[0:a]volume=0:enable='{expr}'[a]"
     else:
         audio = "[0:a]anull[a]"
-    base = "[base]" if reduzir else "[0:v]"
-    pre = f"[0:v]scale={w}:-2[base];" if reduzir else ""
-    video = (f"{pre}[1:v]scale={larg}:-1,format=rgba[c];"
-             f"{base}[c]overlay=x=(main_w-overlay_w)/2:y={y}:shortest=1{enable}[v]")
+    etapas = []
+    entrada = "[0:v]"
+    if reduzir:
+        etapas.append(f"{entrada}scale={w}:-2[base]")
+        entrada = "[base]"
+    if modo == "sdr":
+        etapas.append(f"{entrada}{TONEMAP}[sdr]")
+        entrada = "[sdr]"
+    if modo == "hlg":  # caixinha (sRGB) convertida para HLG BT.2020, 10 bits, com transparência
+        etapas.append(
+            f"[1:v]scale={larg}:-2,format=rgba,split[c1][c2];[c2]alphaextract[al];"
+            "[c1]format=gbrp,zscale=tin=iec61966-2-1:t=linear,format=gbrpf32le,"
+            "zscale=pin=bt709:p=bt2020:t=arib-std-b67:m=bt2020nc:r=tv,format=yuv420p10le,"
+            f"lutyuv=y='clip(64+(val-64)*{a.brilho_caixinha},64,1023)'[cy];[cy][al]alphamerge[c]")
+        fmt = ":format=yuv420p10"
+    else:  # SDR: matriz BT.709 explícita (o padrão do ffmpeg seria BT.601)
+        etapas.append(f"[1:v]scale={larg}:-2:out_color_matrix=bt709,format=yuva420p[c]")
+        fmt = ":format=yuv420"
+    etapas.append(f"{entrada}[c]overlay=x=(main_w-overlay_w)/2:y={y}:shortest=1{fmt}{enable}[v]")
+    video = ";".join(etapas)
     return video if so_video else f"{audio};{video}"
 
 
@@ -271,6 +312,16 @@ def calcular_layout(video, png, inicio, a, nome):
     return w, reduzir, frac, margem
 
 
+def codec_video(modo):
+    if modo == "hlg":  # mantém as cores originais: HEVC 10 bits, BT.2020 HLG
+        return ["-c:v", "libx265", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p10le",
+                "-tag:v", "hvc1", "-colorspace", "bt2020nc", "-color_primaries", "bt2020",
+                "-color_trc", "arib-std-b67", "-color_range", "tv",
+                "-x265-params", "colorprim=bt2020:transfer=arib-std-b67:colormatrix=bt2020nc:range=limited"]
+    cores = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"] if modo == "sdr" else []
+    return ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p", *cores]
+
+
 def cmd_renderizar(a):
     saida = Path(a.saida)
     saida.mkdir(parents=True, exist_ok=True)
@@ -294,13 +345,14 @@ def cmd_renderizar(a):
                 sil.append((max(0.0, s - inicio), e - inicio))
         w, reduzir, frac, margem = calcular_layout(video, png, inicio, a, nome)
         script = saida / f".{video.stem}.filtro.txt"
-        script.write_text(montar_filtro(w, reduzir, sil, a, frac, margem), encoding="utf-8")
+        modo = escolher_modo(video, a, nome)
+        script.write_text(montar_filtro(w, reduzir, sil, a, frac, margem, modo=modo), encoding="utf-8")
         destino = saida / f"{video.stem}_editado.mp4"
         print(f"Renderizando {nome} -> {destino.name} (caixinha {int(r['caixinha']):02d})", flush=True)
         run(["ffmpeg", "-y", "-v", "error", "-ss", f"{inicio:.3f}", "-i", str(video),
              "-loop", "1", "-framerate", "30", "-i", str(png),
              "-filter_complex_script", str(script), "-map", "[v]", "-map", "[a]",
-             "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
+             *codec_video(modo),
              "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-shortest", str(destino)])
         script.unlink(missing_ok=True)
     print("Pronto.")
@@ -324,7 +376,10 @@ def cmd_previa(a):
                 sys.exit(f"Arquivo não encontrado: {p}")
         inicio = parse_t(r["inicio"])
         w, reduzir, frac, margem = calcular_layout(video, png, inicio, a, nome)
-        filtro = montar_filtro(w, reduzir, [], a, frac, margem, so_video=True)
+        modo = escolher_modo(video, a, nome)
+        filtro = montar_filtro(w, reduzir, [], a, frac, margem, so_video=True, modo=modo)
+        if modo == "hlg":  # a imagem da prévia é SDR; o vídeo final mantém o HDR
+            filtro = filtro.replace("[v]", f"[hv];[hv]{TONEMAP}[v]")
         if not a.sem_guia:  # linha vermelha = limite da zona segura de anúncio (só na prévia)
             filtro = filtro.replace("[v]", "[vv];[vv]drawbox=x=0:y=ih*%s:w=iw:h=3:color=red@0.9:t=fill[v]" % margem)
         t = min(inicio + 1.0, max(inicio, probe_dur(video) - 0.2))
@@ -383,6 +438,12 @@ def main():
     rd.add_argument("--posicao", choices=["topo", "centro", "baixo"], default="topo")
     rd.add_argument("--largura", type=float, default=None,
                     help="largura fixa da caixinha (fração do vídeo); sem isso ela se ajusta sozinha para não cobrir a cabeça")
+    rd.add_argument("--sdr", action="store_true",
+                    help="converte vídeos HDR do iPhone para SDR (H.264, compatível com tudo). "
+                         "Padrão: mantém as cores originais (HEVC HDR HLG)")
+    rd.add_argument("--brilho-caixinha", type=float, default=1.35,
+                    help="só HDR: brilho do branco da caixinha (1.0 = padrão de gráficos, ~75%% do sinal HLG; "
+                         "1.35 iguala às áreas claras do vídeo). Suba se a caixinha parecer cinza, desça se ofuscar")
     rd.add_argument("--largura-max", type=float, default=0.7, help="largura máxima no ajuste automático")
     rd.add_argument("--margem", type=float, default=None,
                     help="distância da borda (fração da altura). Padrão: 0.14 no topo (zona segura de anúncio da Meta)")
