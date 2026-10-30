@@ -76,11 +76,12 @@ def topo_do_cabelo(video, inicio, fim):
         import tempfile
     except ImportError:
         return None
-    clf = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    detectores = [cv2.CascadeClassifier(cv2.data.haarcascades + n)
+                  for n in ("haarcascade_frontalface_default.xml", "haarcascade_frontalface_alt2.xml")]
     topos = []
     with tempfile.TemporaryDirectory() as tmp:
-        for k in range(1, 6):
-            t = inicio + (fim - inicio) * k / 6
+        for k in range(1, 10):
+            t = inicio + (fim - inicio) * k / 10
             img = str(Path(tmp) / f"f{k}.png")
             run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.3f}", "-i", str(video),
                  "-frames:v", "1", "-vf", "scale=480:-2", img])
@@ -88,7 +89,11 @@ def topo_do_cabelo(video, inicio, fim):
             if quadro is None:
                 continue
             cinza = cv2.cvtColor(quadro, cv2.COLOR_BGR2GRAY)
-            rostos = clf.detectMultiScale(cinza, 1.1, 5, minSize=(60, 60))
+            rostos = []
+            for clf in detectores:
+                rostos = clf.detectMultiScale(cinza, 1.1, 4, minSize=(50, 50))
+                if len(rostos):
+                    break
             if len(rostos):
                 x, y, w, h = max(rostos, key=lambda r: r[2] * r[3])
                 topos.append((y - 0.40 * h) / quadro.shape[0])  # cabelo/topete acima da testa
@@ -286,6 +291,17 @@ def montar_filtro(w, reduzir, silenciar_rel, a, frac, margem, so_video=False, mo
     return video if so_video else f"{audio};{video}"
 
 
+def para_linha(a, r):
+    """Se o plano.csv tiver a coluna 'largura' preenchida, ela vale só para aquele vídeo (ex.: 0.40)."""
+    import copy
+    valor = (r.get("largura") or "").strip().replace(",", ".")
+    if not valor:
+        return a
+    b = copy.copy(a)
+    b.largura = float(valor)
+    return b
+
+
 def calcular_layout(video, png, inicio, a, nome):
     """Largura de saída, redução, largura da caixinha (fração) e margem do topo (fração)."""
     w, h = probe_dims(video)
@@ -296,7 +312,7 @@ def calcular_layout(video, png, inicio, a, nome):
     margem = a.margem if a.margem is not None else {"topo": 0.14, "baixo": 0.35}.get(a.posicao, 0)
     frac = a.largura
     if frac is None:  # ajuste automático: a caixinha termina acima do topete
-        frac = 0.55
+        frac = 0.40  # sem rosto detectado: tamanho pequeno para não arriscar o topete
         topo_cab = topo_do_cabelo(video, inicio, probe_dur(video)) if a.posicao == "topo" else None
         if topo_cab is None:
             print(f"  AVISO {nome}: rosto não detectado, usando {frac:.0%} da largura. Confira o resultado.")
@@ -343,7 +359,7 @@ def cmd_renderizar(a):
             s, e = (parse_t(x) for x in trecho.split("-", 1))
             if e > inicio:
                 sil.append((max(0.0, s - inicio), e - inicio))
-        w, reduzir, frac, margem = calcular_layout(video, png, inicio, a, nome)
+        w, reduzir, frac, margem = calcular_layout(video, png, inicio, para_linha(a, r), nome)
         script = saida / f".{video.stem}.filtro.txt"
         modo = escolher_modo(video, a, nome)
         script.write_text(montar_filtro(w, reduzir, sil, a, frac, margem, modo=modo), encoding="utf-8")
@@ -375,7 +391,7 @@ def cmd_previa(a):
             if not p.exists():
                 sys.exit(f"Arquivo não encontrado: {p}")
         inicio = parse_t(r["inicio"])
-        w, reduzir, frac, margem = calcular_layout(video, png, inicio, a, nome)
+        w, reduzir, frac, margem = calcular_layout(video, png, inicio, para_linha(a, r), nome)
         modo = escolher_modo(video, a, nome)
         filtro = montar_filtro(w, reduzir, [], a, frac, margem, so_video=True, modo=modo)
         if modo == "hlg":  # a imagem da prévia é SDR; o vídeo final mantém o HDR
@@ -447,7 +463,7 @@ def main():
     rd.add_argument("--largura-max", type=float, default=0.7, help="largura máxima no ajuste automático")
     rd.add_argument("--margem", type=float, default=None,
                     help="distância da borda (fração da altura). Padrão: 0.14 no topo (zona segura de anúncio da Meta)")
-    rd.add_argument("--folga-cabeca", type=float, default=0.015,
+    rd.add_argument("--folga-cabeca", type=float, default=0.03,
                     help="espaço livre entre a caixinha e o topete (fração da altura)")
     rd.add_argument("--largura-saida", type=int, default=0,
                     help="reduz o vídeo para essa largura (ex.: 1080); 0 (padrão) mantém a resolução original")
