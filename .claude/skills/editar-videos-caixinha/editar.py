@@ -62,6 +62,39 @@ def probe_dims(video):
     return w, h
 
 
+def probe_dur(video):
+    out = run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+               "-of", "default=nw=1:nk=1", str(video)])
+    return float(out.strip())
+
+
+def topo_do_cabelo(video, inicio, fim):
+    """Estima, em fração da altura do quadro, onde começa o cabelo (topete) do apresentador.
+    Devolve None se não achar rosto ou se o OpenCV não estiver instalado."""
+    try:
+        import cv2
+        import tempfile
+    except ImportError:
+        return None
+    clf = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    topos = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for k in range(1, 6):
+            t = inicio + (fim - inicio) * k / 6
+            img = str(Path(tmp) / f"f{k}.png")
+            run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.3f}", "-i", str(video),
+                 "-frames:v", "1", "-vf", "scale=480:-2", img])
+            quadro = cv2.imread(img)
+            if quadro is None:
+                continue
+            cinza = cv2.cvtColor(quadro, cv2.COLOR_BGR2GRAY)
+            rostos = clf.detectMultiScale(cinza, 1.1, 5, minSize=(60, 60))
+            if len(rostos):
+                x, y, w, h = max(rostos, key=lambda r: r[2] * r[3])
+                topos.append((y - 0.40 * h) / quadro.shape[0])  # cabelo/topete acima da testa
+    return min(topos) if topos else None
+
+
 # ---------------------------------------------------------------- analisar
 def carregar_wav(path):
     import numpy as np
@@ -190,13 +223,13 @@ def cmd_analisar(a):
 
 
 # -------------------------------------------------------------- renderizar
-def montar_filtro(w, reduzir, silenciar_rel, a):
+def montar_filtro(w, reduzir, silenciar_rel, a, frac, margem, so_video=False):
     """w = largura do vídeo de saída; reduzir=True escala o vídeo para essa largura."""
-    larg = int(w * a.largura) // 2 * 2
+    larg = int(w * frac) // 2 * 2
     if a.posicao == "topo":
-        y = f"main_h*{a.margem}"
+        y = f"main_h*{margem}"
     elif a.posicao == "baixo":
-        y = f"main_h-overlay_h-main_h*{a.margem}"
+        y = f"main_h-overlay_h-main_h*{margem}"
     else:
         y = "(main_h-overlay_h)/2"
     enable = f":enable='between(t,0,{a.caixinha_segundos})'" if a.caixinha_segundos > 0 else ""
@@ -207,8 +240,35 @@ def montar_filtro(w, reduzir, silenciar_rel, a):
         audio = "[0:a]anull[a]"
     base = "[base]" if reduzir else "[0:v]"
     pre = f"[0:v]scale={w}:-2[base];" if reduzir else ""
-    return (f"{audio};{pre}[1:v]scale={larg}:-1,format=rgba[c];"
-            f"{base}[c]overlay=x=(main_w-overlay_w)/2:y={y}:shortest=1{enable}[v]")
+    video = (f"{pre}[1:v]scale={larg}:-1,format=rgba[c];"
+             f"{base}[c]overlay=x=(main_w-overlay_w)/2:y={y}:shortest=1{enable}[v]")
+    return video if so_video else f"{audio};{video}"
+
+
+def calcular_layout(video, png, inicio, a, nome):
+    """Largura de saída, redução, largura da caixinha (fração) e margem do topo (fração)."""
+    w, h = probe_dims(video)
+    reduzir = bool(a.largura_saida) and w > a.largura_saida
+    if reduzir:
+        h = int(h * a.largura_saida / w)
+        w = a.largura_saida // 2 * 2
+    margem = a.margem if a.margem is not None else {"topo": 0.14, "baixo": 0.35}.get(a.posicao, 0)
+    frac = a.largura
+    if frac is None:  # ajuste automático: a caixinha termina acima do topete
+        frac = 0.55
+        topo_cab = topo_do_cabelo(video, inicio, probe_dur(video)) if a.posicao == "topo" else None
+        if topo_cab is None:
+            print(f"  AVISO {nome}: rosto não detectado, usando {frac:.0%} da largura. Confira o resultado.")
+        else:
+            pw, ph = probe_dims(png)
+            livre = topo_cab - a.folga_cabeca - margem  # fração da altura entre a margem e o cabelo
+            ideal = livre * h * (pw / ph) / w
+            frac = min(max(ideal, 0.30), a.largura_max)
+            print(f"  topete a {topo_cab:.0%} da altura; caixinha com {frac:.0%} da largura, "
+                  f"a {margem:.0%} do topo")
+            if ideal < 0.30:
+                print(f"  AVISO {nome}: pouco espaço acima da cabeça; a caixinha pode tocar o cabelo.")
+    return w, reduzir, frac, margem
 
 
 def cmd_renderizar(a):
@@ -232,12 +292,9 @@ def cmd_renderizar(a):
             s, e = (parse_t(x) for x in trecho.split("-", 1))
             if e > inicio:
                 sil.append((max(0.0, s - inicio), e - inicio))
-        w, h = probe_dims(video)
-        reduzir = bool(a.largura_saida) and w > a.largura_saida
-        if reduzir:
-            w = a.largura_saida // 2 * 2
+        w, reduzir, frac, margem = calcular_layout(video, png, inicio, a, nome)
         script = saida / f".{video.stem}.filtro.txt"
-        script.write_text(montar_filtro(w, reduzir, sil, a), encoding="utf-8")
+        script.write_text(montar_filtro(w, reduzir, sil, a, frac, margem), encoding="utf-8")
         destino = saida / f"{video.stem}_editado.mp4"
         print(f"Renderizando {nome} -> {destino.name} (caixinha {int(r['caixinha']):02d})", flush=True)
         run(["ffmpeg", "-y", "-v", "error", "-ss", f"{inicio:.3f}", "-i", str(video),
@@ -247,6 +304,36 @@ def cmd_renderizar(a):
              "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-shortest", str(destino)])
         script.unlink(missing_ok=True)
     print("Pronto.")
+
+
+def cmd_previa(a):
+    """Uma imagem por vídeo, com a caixinha no lugar, para aprovar a altura antes de renderizar."""
+    saida = Path(a.saida)
+    saida.mkdir(parents=True, exist_ok=True)
+    with open(a.plano, newline="", encoding="utf-8-sig") as f:
+        linhas = list(csv.DictReader(f, delimiter=";"))
+    for r in linhas:
+        nome = r["arquivo"]
+        if not r.get("caixinha") or not r.get("inicio"):
+            print(f"PULANDO {nome}: sem início/caixinha no plano")
+            continue
+        video = Path(a.videos) / nome
+        png = Path(a.caixinhas) / f"{int(r['caixinha']):02d}.png"
+        for p in (video, png):
+            if not p.exists():
+                sys.exit(f"Arquivo não encontrado: {p}")
+        inicio = parse_t(r["inicio"])
+        w, reduzir, frac, margem = calcular_layout(video, png, inicio, a, nome)
+        filtro = montar_filtro(w, reduzir, [], a, frac, margem, so_video=True)
+        if not a.sem_guia:  # linha vermelha = limite da zona segura de anúncio (só na prévia)
+            filtro = filtro.replace("[v]", "[vv];[vv]drawbox=x=0:y=ih*%s:w=iw:h=3:color=red@0.9:t=fill[v]" % margem)
+        t = min(inicio + 1.0, max(inicio, probe_dur(video) - 0.2))
+        destino = saida / f"{Path(nome).stem}_previa.png"
+        run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.3f}", "-i", str(video),
+             "-loop", "1", "-framerate", "30", "-i", str(png),
+             "-filter_complex", filtro + ";[v]scale=720:-2[p]", "-map", "[p]",
+             "-frames:v", "1", str(destino)])
+        print(f"Prévia: {destino}")
 
 
 # ---------------------------------------------------------------- planilha
@@ -294,12 +381,22 @@ def main():
     rd.add_argument("--plano", default="plano.csv")
     rd.add_argument("--saida", default="saida")
     rd.add_argument("--posicao", choices=["topo", "centro", "baixo"], default="topo")
-    rd.add_argument("--largura", type=float, default=0.55, help="largura da caixinha (fração do vídeo)")
-    rd.add_argument("--margem", type=float, default=0.05, help="distância da borda (fração da altura)")
+    rd.add_argument("--largura", type=float, default=None,
+                    help="largura fixa da caixinha (fração do vídeo); sem isso ela se ajusta sozinha para não cobrir a cabeça")
+    rd.add_argument("--largura-max", type=float, default=0.7, help="largura máxima no ajuste automático")
+    rd.add_argument("--margem", type=float, default=None,
+                    help="distância da borda (fração da altura). Padrão: 0.14 no topo (zona segura de anúncio da Meta)")
+    rd.add_argument("--folga-cabeca", type=float, default=0.015,
+                    help="espaço livre entre a caixinha e o topete (fração da altura)")
     rd.add_argument("--largura-saida", type=int, default=0,
                     help="reduz o vídeo para essa largura (ex.: 1080); 0 (padrão) mantém a resolução original")
     rd.add_argument("--caixinha-segundos", type=float, default=0, help="0 = o vídeo todo")
     rd.set_defaults(fn=cmd_renderizar)
+    pv = sub.add_parser("previa", parents=[rd], add_help=False, conflict_handler="resolve",
+                        help="gera uma imagem por vídeo para aprovar a altura da caixinha")
+    pv.add_argument("--saida", default="previas")
+    pv.add_argument("--sem-guia", action="store_true", help="não desenhar a linha vermelha da zona segura")
+    pv.set_defaults(fn=cmd_previa)
     pl = sub.add_parser("planilha", help="monta a planilha de postagem (vídeo, legenda, data e hora)")
     pl.add_argument("--plano", default="plano.csv")
     pl.add_argument("--legendas", default=str(Path(__file__).with_name("legendas-seo-caixinhas.md")))

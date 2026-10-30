@@ -20,24 +20,28 @@ As imagens `01.png` a `50.png` (fundo transparente, 1612x638) vêm num zip envia
    - `silenciar`: trechos `a-b|c-d` em que a voz dela é zerada. O vídeo continua, ficam só os espaços vazios.
    - `caixinha`: número 1 a 50, escolhido pela semelhança entre a pergunta falada e o texto das caixinhas.
    - Linhas com `CONFERIR CAIXINHA` ou `caixinha repetida` precisam de olhar humano.
-3. **Renderizar**:
+3. **Prévia da altura da caixinha** (uma imagem por vídeo, rápido, sem renderizar tudo):
+   `python editar.py previa --videos PASTA --caixinhas PASTA_PNGS --plano plano.csv --saida previas`
+   Mostrar as imagens para a Izabela aprovar a altura. A linha vermelha é o limite da zona segura de anúncio da Meta (só na prévia).
+4. **Renderizar**:
    `python editar.py renderizar --videos PASTA --caixinhas PASTA_PNGS --plano plano.csv --saida editados`
-4. Entregar os `IMG_xxxx_editado.mp4`. A saída mantém a resolução original do vídeo (a Izabela não quer que o vídeo seja alterado além de corte, voz e caixinha). Só reduza com `--largura-saida 1080` se ela pedir.
-5. **Planilha de postagem** (Meta Business Suite): `python editar.py planilha --plano plano.csv --saida postagens.csv --inicio AAAA-MM-DD --horas 09:00,19:00`.
+5. Entregar os `IMG_xxxx_editado.mp4`. A saída mantém a resolução original do vídeo (a Izabela não quer que o vídeo seja alterado além de corte, voz e caixinha). Só reduza com `--largura-saida 1080` se ela pedir.
+6. **Planilha de postagem** (Meta Business Suite): `python editar.py planilha --plano plano.csv --saida postagens.csv --inicio AAAA-MM-DD --horas 09:00,19:00`.
    Gera uma linha por vídeo com legenda SEO (de `legendas-seo-caixinhas.md`), data e hora sugeridas.
 
 ## Padrões (ajustar conforme a Izabela pedir)
-- Caixinha no **topo**, centralizada, 55% da largura e 5% de margem (90% cobria a cabeça), durante o vídeo todo (`--posicao`, `--largura`, `--margem`, `--caixinha-segundos`).
+- Caixinha no **topo**, centralizada, começando a **14% da altura** (zona segura de anúncio da Meta, `--margem`), durante o vídeo todo. O tamanho **se ajusta sozinho**: o script detecta o rosto, estima onde começa o topete e faz a caixinha terminar acima dele (`--folga-cabeca`, `--largura-max`). `--largura 0.5` fixa um tamanho. O tamanho em si não importa para a Izabela; o que importa é **nunca cobrir o topete** e respeitar a margem da Meta.
 - Saída H.264/AAC, CRF 18, resolução original (não redimensionar sem ela pedir).
 - O vídeo começa 0,8 s antes da 1ª fala do apresentador (`--folga-inicio`), e o silenciamento da voz da Izabela nunca invade a fala do apresentador.
 - A separação de vozes assume que **a Izabela fala primeiro**. Se errar, usar `--voz-minha amostra.wav` (áudio curto só com a voz dela) ou ajustar `--limiar`.
 - Se não houver transcrição (sem internet para o Whisper), preencher o `plano.csv` à mão e usar só `renderizar`.
 
 ## Rodar no PC (Windows)
-Python 3.11 + ffmpeg + `pip install faster-whisper resemblyzer rapidfuzz`. Os comandos acima valem a partir dessa pasta.
+Python 3.11 + ffmpeg + `pip install faster-whisper resemblyzer rapidfuzz "opencv-python-headless<5"` (o OpenCV 5 não tem o detector de rosto usado; manter a versão 4). Os comandos acima valem a partir dessa pasta.
 
 ## Histórico de ajustes
 Registre aqui o que deu errado e o que foi corrigido, para a próxima edição já sair melhor.
 - 2026-10-29: `renderizar` testado com um clipe real de iPhone (4K HEVC, girado, 2 s): saiu 1080x1920, caixinha no topo, áudio ok. `analisar` (Whisper + separação de vozes) **ainda não foi testado**: o Hugging Face estava bloqueado no ambiente.
 - 2026-10-30: a caixinha a 90% da largura cobria a cabeça do apresentador nos vídeos reais; padrão passou para 55% e margem 5%. O corte estava entrando em cima da 1ª fala; folga de início subiu de 0,4 s para 0,8 s.
+- 2026-10-30: pedido da Izabela: a caixinha não pode cortar o topete e deve respeitar a margem de anúncio da Meta (topo 14%). Implementado ajuste automático por detecção de rosto + comando `previa` para aprovar a altura. Testado em 1 clipe (topete real a ~31%, caixinha termina a ~25%). A detecção por rosto pode falhar com cabeça inclinada, de lado ou de óculos; se não achar rosto, usa 55% e avisa.
 - (pendente) O script ainda não foi testado com os vídeos longos reais. No primeiro teste, anotar: cortes certos? vozes trocadas? caixinha certa? posição/tamanho bons?
