@@ -18,7 +18,7 @@ from pathlib import Path
 
 VIDEO_EXT = {".mov", ".mp4", ".m4v"}
 COLUNAS = ["arquivo", "inicio", "silenciar", "caixinha", "pergunta_detectada", "confianca", "revisar"]
-PAD_CORTE = 0.4       # segundos antes da 1ª fala do apresentador
+PAD_CORTE = 0.8       # segundos antes da 1ª fala do apresentador (padrão de --folga-inicio)
 PAD_SILENCIO = 0.15   # folga em volta de cada trecho silenciado
 SR = 16000
 
@@ -153,9 +153,20 @@ def cmd_analisar(a):
             linhas.append({"arquivo": v.name, "revisar": "NÃO ACHEI O APRESENTADOR"})
             continue
         primeiro = apres[0]
-        inicio = max(0.0, segs[primeiro][0] - PAD_CORTE)
-        silenciar = [(max(inicio, s - PAD_SILENCIO), e + PAD_SILENCIO)
-                     for (s, e, _), m in zip(segs, meu) if m and e > inicio]
+        inicio = max(0.0, segs[primeiro][0] - a.folga_inicio)
+        da_apres = [(s, e) for (s, e, _), m in zip(segs, meu) if not m]
+
+        def folgar(s, e):
+            """Folga em volta da minha fala, sem invadir a fala do apresentador."""
+            s2, e2 = s - PAD_SILENCIO, e + PAD_SILENCIO
+            for ps, pe in da_apres:
+                if ps >= e:
+                    e2 = min(e2, max(e, ps - 0.05))
+                if pe <= s:
+                    s2 = max(s2, min(s, pe + 0.05))
+            return max(inicio, s2), e2
+
+        silenciar = [folgar(s, e) for (s, e, _), m in zip(segs, meu) if m and e > inicio]
         pergunta = " ".join(t for (s, e, t), m in zip(segs, meu) if m and s < inicio)
         base = pergunta or segs[primeiro][2]
         num, sc, folga = melhor_caixinha(base, caixinhas)
@@ -273,6 +284,8 @@ def main():
     an.add_argument("--caixinhas-json", default=str(Path(__file__).with_name("caixinhas.json")))
     an.add_argument("--modelo", default="small", help="modelo Whisper: small, medium, large-v3")
     an.add_argument("--voz-minha", help="áudio curto (.wav) só com a sua voz; melhora a separação")
+    an.add_argument("--folga-inicio", type=float, default=PAD_CORTE,
+                    help="segundos mantidos antes da 1ª fala do apresentador (padrão 0.8; aumente se cortar a fala)")
     an.add_argument("--limiar", type=float, default=0.75, help="similaridade de voz (0-1) para ser 'eu'")
     an.set_defaults(fn=cmd_analisar)
     rd = sub.add_parser("renderizar", help="gera os vídeos a partir do plano.csv")
@@ -281,8 +294,8 @@ def main():
     rd.add_argument("--plano", default="plano.csv")
     rd.add_argument("--saida", default="saida")
     rd.add_argument("--posicao", choices=["topo", "centro", "baixo"], default="topo")
-    rd.add_argument("--largura", type=float, default=0.9, help="largura da caixinha (fração do vídeo)")
-    rd.add_argument("--margem", type=float, default=0.08, help="distância da borda (fração da altura)")
+    rd.add_argument("--largura", type=float, default=0.55, help="largura da caixinha (fração do vídeo)")
+    rd.add_argument("--margem", type=float, default=0.05, help="distância da borda (fração da altura)")
     rd.add_argument("--largura-saida", type=int, default=0,
                     help="reduz o vídeo para essa largura (ex.: 1080); 0 (padrão) mantém a resolução original")
     rd.add_argument("--caixinha-segundos", type=float, default=0, help="0 = o vídeo todo")

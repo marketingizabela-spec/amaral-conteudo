@@ -27,8 +27,9 @@ As imagens `01.png` a `50.png` (fundo transparente, 1612x638) vêm num zip envia
    Gera uma linha por vídeo com legenda SEO (de `legendas-seo-caixinhas.md`), data e hora sugeridas.
 
 ## Padrões (ajustar conforme a Izabela pedir)
-- Caixinha no **topo**, centralizada, 90% da largura, durante o vídeo todo (`--posicao`, `--largura`, `--margem`, `--caixinha-segundos`).
+- Caixinha no **topo**, centralizada, 55% da largura e 5% de margem (90% cobria a cabeça), durante o vídeo todo (`--posicao`, `--largura`, `--margem`, `--caixinha-segundos`).
 - Saída H.264/AAC, CRF 18, resolução original (não redimensionar sem ela pedir).
+- O vídeo começa 0,8 s antes da 1ª fala do apresentador (`--folga-inicio`), e o silenciamento da voz da Izabela nunca invade a fala do apresentador.
 - A separação de vozes assume que **a Izabela fala primeiro**. Se errar, usar `--voz-minha amostra.wav` (áudio curto só com a voz dela) ou ajustar `--limiar`.
 - Se não houver transcrição (sem internet para o Whisper), preencher o `plano.csv` à mão e usar só `renderizar`.
 
@@ -38,4 +39,5 @@ Python 3.11 + ffmpeg + `pip install faster-whisper resemblyzer rapidfuzz`. Os co
 ## Histórico de ajustes
 Registre aqui o que deu errado e o que foi corrigido, para a próxima edição já sair melhor.
 - 2026-10-29: `renderizar` testado com um clipe real de iPhone (4K HEVC, girado, 2 s): saiu 1080x1920, caixinha no topo, áudio ok. `analisar` (Whisper + separação de vozes) **ainda não foi testado**: o Hugging Face estava bloqueado no ambiente.
+- 2026-10-30: a caixinha a 90% da largura cobria a cabeça do apresentador nos vídeos reais; padrão passou para 55% e margem 5%. O corte estava entrando em cima da 1ª fala; folga de início subiu de 0,4 s para 0,8 s.
 - (pendente) O script ainda não foi testado com os vídeos longos reais. No primeiro teste, anotar: cortes certos? vozes trocadas? caixinha certa? posição/tamanho bons?
