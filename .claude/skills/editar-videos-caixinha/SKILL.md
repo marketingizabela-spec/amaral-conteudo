@@ -12,6 +12,9 @@ As imagens `01.png` a `50.png` (fundo transparente, 1612x638) vêm num zip envia
 1. Confirme que os vídeos e as caixinhas estão acessíveis. Esta sessão pode não ver o computador da Izabela, e o conector do Google Drive só baixa arquivos de até 10 MB. Se os arquivos não chegarem, diga isso em vez de improvisar, e ofereça rodar o script no PC dela (ver "Rodar no PC").
 2. Comece por **um** vídeo curto. Só processe o lote depois que ela aprovar o resultado.
 
+## Criar caixinhas novas a partir dos vídeos
+Se os vídeos não têm caixinha ainda: `python editar.py transcrever --videos PASTA --saida transcricoes` gera `TODAS_AS_TRANSCRICOES.txt`. Ler as transcrições e escrever, para cada vídeo, a pergunta-tema no estilo das 50 existentes em `caixinhas.json` (primeira pessoa, linguagem simples, curta, termina em `?`, cerca de 40 a 60 caracteres). Mostrar para a Izabela aprovar antes de gerar as imagens.
+
 ## Fluxo
 1. **Analisar** (transcreve, separa as vozes, sugere o corte e a caixinha):
    `python editar.py analisar --videos PASTA --plano plano.csv`

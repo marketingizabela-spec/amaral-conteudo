@@ -407,6 +407,35 @@ def cmd_previa(a):
         print(f"Prévia: {destino}")
 
 
+# -------------------------------------------------------------- transcrever
+def fmt_t(x):
+    return f"{int(x // 60):02d}:{x % 60:04.1f}"
+
+
+def cmd_transcrever(a):
+    """Só a transcrição (com minutos e segundos), um .txt por vídeo e um arquivo único para colar no chat."""
+    from faster_whisper import WhisperModel
+    videos = sorted(p for p in Path(a.videos).iterdir() if p.suffix.lower() in VIDEO_EXT)
+    if not videos:
+        sys.exit(f"Nenhum vídeo em {a.videos}")
+    saida = Path(a.saida)
+    saida.mkdir(parents=True, exist_ok=True)
+    whisper = WhisperModel(a.modelo, device="auto", compute_type="int8")
+    tmp = saida / ".audio.wav"
+    blocos = []
+    for v in videos:
+        print(f"Transcrevendo {v.name} ...", flush=True)
+        extrair_wav(v, tmp)
+        segs = whisper.transcribe(str(tmp), language="pt", vad_filter=True)[0]
+        linhas = [f"[{fmt_t(s.start)}] {s.text.strip()}" for s in segs]
+        texto = "\n".join(linhas) or "(sem fala detectada)"
+        (saida / f"{v.stem}.txt").write_text(texto, encoding="utf-8")
+        blocos.append(f"=== {v.name} ===\n{texto}\n")
+    tmp.unlink(missing_ok=True)
+    (saida / "TODAS_AS_TRANSCRICOES.txt").write_text("\n".join(blocos), encoding="utf-8")
+    print(f"\nPronto: {saida / 'TODAS_AS_TRANSCRICOES.txt'}")
+
+
 # ---------------------------------------------------------------- planilha
 def ler_legendas(path):
     txt = Path(path).read_text(encoding="utf-8")
@@ -446,6 +475,11 @@ def main():
                     help="segundos mantidos antes da 1ª fala do apresentador (padrão 0.8; aumente se cortar a fala)")
     an.add_argument("--limiar", type=float, default=0.75, help="similaridade de voz (0-1) para ser 'eu'")
     an.set_defaults(fn=cmd_analisar)
+    tr = sub.add_parser("transcrever", help="só transcreve os vídeos (para criar as perguntas das caixinhas)")
+    tr.add_argument("--videos", required=True)
+    tr.add_argument("--saida", default="transcricoes")
+    tr.add_argument("--modelo", default="small", help="modelo Whisper: small, medium, large-v3")
+    tr.set_defaults(fn=cmd_transcrever)
     rd = sub.add_parser("renderizar", help="gera os vídeos a partir do plano.csv")
     rd.add_argument("--videos", required=True)
     rd.add_argument("--caixinhas", required=True, help="pasta com 01.png ... 50.png")
