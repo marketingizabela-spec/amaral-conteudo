@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Fiado das Tortinhas</title>
+<title>Continha dos Doces</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -583,7 +583,7 @@
   <header class="top">
     <div class="title-row">
       <div>
-        <h1>Fiado das Tortinhas</h1>
+        <h1>Continha dos Doces</h1>
         <div class="subtitle">Quem levou e ainda não pagou</div>
       </div>
       <div id="price-slot"></div>
@@ -644,7 +644,7 @@
   "use strict";
 
   var state = { sales: [], price: 8.5, ready: false, localMode: false };
-  var QUICK_NAMES = ["Carol", "Daniel", "Gabi", "Polly"];
+  var QUICK_NAMES = ["Daniel", "Gabi", "Polly", "Fernanda", "Alê"];
   // window.claude only ever exists when served by claude.ai (even if a
   // shortcut/direct link there still can't reach the account's storage);
   // a self-hosted copy (GitHub Pages, a saved file) never has it at all.
@@ -655,7 +655,6 @@
   var CONTATOS = {
     polly: "5531993666117",
     daniel: "5531994722666",
-    carol: "5531987415344",
     gabi: "5531972266852"
   };
 
@@ -742,10 +741,7 @@
     { id: "seed-gabi-1021a", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610211 },
     { id: "seed-gabi-1021b", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610212 },
     { id: "seed-gabi-1021c", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610213 },
-    { id: "seed-gabi-1020", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610200 },
-    { id: "seed-carol-1021", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
-    { id: "seed-carol-1015", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
-    { id: "seed-carol-1014", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610140 }
+    { id: "seed-gabi-1020", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610200 }
   ];
 
   function localLoad() {
@@ -959,7 +955,7 @@
       .join("\n");
     return (
       "Oi, " + name + "! 🥧\n\n" +
-      "Esta é uma mensagem automática do sistema de gerenciamento de tortinhas que eu criei para controlar as vendas fiado.\n\n" +
+      "Esta é uma mensagem automática do sistema de gerenciamento de doces que eu criei para controlar as vendas fiado.\n\n" +
       "Você tem doces em aberto:\n" + linhas + "\n\n" +
       "Total a pagar: " + fmtBRL(owed) + "\n\n" +
       "Pra quitar, pode fazer o Pix pra:\n" +
