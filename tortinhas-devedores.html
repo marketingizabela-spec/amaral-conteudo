@@ -120,6 +120,13 @@
     gap: 12px;
   }
 
+  #price-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
   .price-pill {
     background: var(--gold-soft);
     color: var(--gold);
@@ -259,6 +266,28 @@
   }
   .name-chip:hover { border-color: var(--accent); color: var(--accent); }
   .name-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper-raised);
+  }
+
+  .product-toggle {
+    display: flex;
+    gap: 8px;
+  }
+  .product-btn {
+    flex: 1;
+    border: 1.5px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink-soft);
+    border-radius: 12px;
+    padding: 9px 10px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .product-btn.active {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--paper-raised);
@@ -423,6 +452,7 @@
   }
   .line-text .qty { font-weight: 600; }
   .line-text .date { color: var(--ink-faint); font-size: 0.78rem; }
+  .line-text .line-desc { color: var(--paid); font-size: 0.78rem; font-weight: 600; }
   .line-item.is-paid .line-text { color: var(--ink-faint); text-decoration: line-through; }
   .line-sub {
     font-variant-numeric: tabular-nums;
@@ -553,6 +583,7 @@
 
   <form id="add-form">
     <div class="row-title">Anotar venda</div>
+    <div class="product-toggle" id="product-toggle"></div>
     <div class="name-chips" id="name-chips"></div>
     <div class="field-row">
       <input id="nome-input" name="nome" type="text" placeholder="Nome de quem levou" autocomplete="off" list="nomes-conhecidos" required />
@@ -564,7 +595,7 @@
     </div>
     <datalist id="nomes-conhecidos"></datalist>
     <div class="add-footer">
-      <div class="subtotal-preview">Fica em <b id="subtotal-preview">R$ 8,50</b></div>
+      <div class="subtotal-preview" id="subtotal-preview"></div>
       <button type="submit" id="submit-btn">Anotar</button>
     </div>
   </form>
@@ -592,8 +623,39 @@
 (function () {
   "use strict";
 
-  var state = { sales: [], price: 8.5, ready: false, localMode: false };
+  var state = { sales: [], precos: { tortinha: 8.5, brigadeiro: 4 }, ready: false, localMode: false };
   var QUICK_NAMES = ["Carol", "Daniel", "Gabi", "Polly"];
+  var PRODUTOS = {
+    tortinha: { singular: "tortinha", plural: "tortinhas", label: "Tortinha" },
+    brigadeiro: { singular: "brigadeiro", plural: "brigadeiros", label: "Brigadeiro" }
+  };
+  var selectedProduto = "tortinha";
+
+  function produtoDe(sale) {
+    return PRODUTOS[sale.produto] ? sale.produto : "tortinha";
+  }
+  function precoDe(sale) {
+    var p = produtoDe(sale);
+    return typeof sale.precoUnitario === "number" ? sale.precoUnitario : state.precos[p];
+  }
+  // 5 brigadeiros numa mesma venda = 1 de graça (desconto = preço de 1 unidade
+  // por grupo completo de 5). Não se aplica a tortinha nem a brigadeiros
+  // comprados avulsos em vendas separadas que só somam 5 ao longo do tempo.
+  function calcValor(produto, qty, precoUnitario) {
+    var bruto = qty * precoUnitario;
+    var desconto = produto === "brigadeiro" ? Math.floor(qty / 5) * precoUnitario : 0;
+    return { bruto: bruto, desconto: desconto, total: bruto - desconto };
+  }
+  function valorDe(sale) {
+    var qty = sale.quantidade || 0;
+    var preco = precoDe(sale);
+    var desconto = typeof sale.desconto === "number" ? sale.desconto : calcValor(produtoDe(sale), qty, preco).desconto;
+    return qty * preco - desconto;
+  }
+  function labelDe(sale) {
+    var p = PRODUTOS[produtoDe(sale)];
+    return (sale.quantidade || 0) > 1 ? p.plural : p.singular;
+  }
   // window.claude only ever exists when served by claude.ai (even if a
   // shortcut/direct link there still can't reach the account's storage);
   // a self-hosted copy (GitHub Pages, a saved file) never has it at all.
@@ -631,7 +693,7 @@
 
   // ---------- storage layer: db capability with localStorage fallback ----------
   var LOCAL_SALES_KEY = "tortinhas_vendas_v1";
-  var LOCAL_PRICE_KEY = "tortinhas_preco_v1";
+  var LOCAL_PRECOS_KEY = "tortinhas_precos_v1";
   var store = null;
 
   // Only used to bootstrap a brand-new, empty localStorage (first ever
@@ -670,12 +732,21 @@
       }
     } catch (e) { state.sales = []; }
     try {
-      var p = localStorage.getItem(LOCAL_PRICE_KEY);
-      state.price = p ? parseFloat(p) : 8.5;
-    } catch (e) { state.price = 8.5; }
+      var raw2 = localStorage.getItem(LOCAL_PRECOS_KEY);
+      if (raw2) {
+        state.precos = Object.assign({}, state.precos, JSON.parse(raw2));
+      } else {
+        // migrate the old single-product price key, if this device has one
+        var oldPrice = localStorage.getItem("tortinhas_preco_v1");
+        if (oldPrice) state.precos.tortinha = parseFloat(oldPrice);
+      }
+    } catch (e) {}
   }
   function localSave() {
     try { localStorage.setItem(LOCAL_SALES_KEY, JSON.stringify(state.sales)); } catch (e) {}
+  }
+  function localSavePrecos() {
+    try { localStorage.setItem(LOCAL_PRECOS_KEY, JSON.stringify(state.precos)); } catch (e) {}
   }
 
   function makeLocalStore() {
@@ -707,9 +778,9 @@
         localSave();
         render();
       },
-      setPrice: function (v) {
-        state.price = v;
-        try { localStorage.setItem(LOCAL_PRICE_KEY, String(v)); } catch (e) {}
+      setPrice: function (produto, v) {
+        state.precos[produto] = v;
+        localSavePrecos();
         render();
         return Promise.resolve();
       }
@@ -718,7 +789,7 @@
 
   function makeDbStore(db) {
     var vendas = db.collection("vendas");
-    var priceDoc = db.doc("config/preco");
+    var precosDoc = db.doc("config/precos");
 
     vendas.onSnapshot(function (snap) {
       state.sales = snap.docs.map(function (d) {
@@ -733,11 +804,11 @@
       render();
     });
 
-    priceDoc.onSnapshot(function (snap) {
+    precosDoc.onSnapshot(function (snap) {
       var data = snap.exists ? snap.data() : null;
-      state.price = data && typeof data.valor === "number" ? data.valor : 8.5;
+      if (data) state.precos = Object.assign({}, state.precos, data);
       render();
-    }, function () { /* keep default price on error */ });
+    }, function () { /* keep default prices on error */ });
 
     return {
       addSale: function (data) {
@@ -754,8 +825,10 @@
         delete copy.id;
         return vendas.add(copy);
       },
-      setPrice: function (v) {
-        return priceDoc.set({ valor: v });
+      setPrice: function (produto, v) {
+        var patch = {};
+        patch[produto] = v;
+        return precosDoc.set(Object.assign({}, state.precos, patch));
       }
     };
   }
@@ -790,41 +863,54 @@
 
   function renderPriceSlot() {
     els.priceSlot.innerHTML = "";
-    var pill = document.createElement("button");
-    pill.type = "button";
-    pill.className = "price-pill";
-    pill.textContent = fmtBRL(state.price) + " /un";
-    pill.addEventListener("click", function () { renderPriceEdit(); });
-    els.priceSlot.appendChild(pill);
+    Object.keys(PRODUTOS).forEach(function (produto) {
+      var pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "price-pill";
+      pill.textContent = PRODUTOS[produto].label + " " + fmtBRL(state.precos[produto]) + "/un";
+      pill.addEventListener("click", function () { renderPriceEdit(produto); });
+      els.priceSlot.appendChild(pill);
+    });
   }
 
-  function renderPriceEdit() {
+  function renderPriceEdit(produto) {
     els.priceSlot.innerHTML = "";
-    var wrap = document.createElement("div");
-    wrap.className = "price-edit";
-    var label = document.createElement("span");
-    label.textContent = "R$";
-    var input = document.createElement("input");
-    input.type = "number";
-    input.step = "0.10";
-    input.min = "0";
-    input.value = state.price.toFixed(2);
-    var btn = document.createElement("button");
-    btn.textContent = "Ok";
-    btn.addEventListener("click", function () {
-      var v = parseFloat(input.value);
-      if (!isNaN(v) && v > 0) store.setPrice(Math.round(v * 100) / 100);
-      renderPriceSlot();
+    Object.keys(PRODUTOS).forEach(function (p) {
+      if (p !== produto) {
+        var otherPill = document.createElement("button");
+        otherPill.type = "button";
+        otherPill.className = "price-pill";
+        otherPill.textContent = PRODUTOS[p].label + " " + fmtBRL(state.precos[p]) + "/un";
+        otherPill.addEventListener("click", function () { renderPriceEdit(p); });
+        els.priceSlot.appendChild(otherPill);
+        return;
+      }
+      var wrap = document.createElement("div");
+      wrap.className = "price-edit";
+      var label = document.createElement("span");
+      label.textContent = PRODUTOS[p].label;
+      var input = document.createElement("input");
+      input.type = "number";
+      input.step = "0.10";
+      input.min = "0";
+      input.value = state.precos[p].toFixed(2);
+      var btn = document.createElement("button");
+      btn.textContent = "Ok";
+      btn.addEventListener("click", function () {
+        var v = parseFloat(input.value);
+        if (!isNaN(v) && v > 0) store.setPrice(p, Math.round(v * 100) / 100);
+        renderPriceSlot();
+      });
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); btn.click(); }
+      });
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      wrap.appendChild(btn);
+      els.priceSlot.appendChild(wrap);
+      input.focus();
+      input.select();
     });
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { e.preventDefault(); btn.click(); }
-    });
-    wrap.appendChild(label);
-    wrap.appendChild(input);
-    wrap.appendChild(btn);
-    els.priceSlot.appendChild(wrap);
-    input.focus();
-    input.select();
   }
 
   function renderNames() {
@@ -857,19 +943,38 @@
     });
   }
 
+  function renderProductToggle() {
+    var wrap = document.getElementById("product-toggle");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    Object.keys(PRODUTOS).forEach(function (produto) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "product-btn" + (selectedProduto === produto ? " active" : "");
+      btn.textContent = PRODUTOS[produto].label;
+      btn.addEventListener("click", function () {
+        selectedProduto = produto;
+        renderProductToggle();
+        updateSubtotalPreview();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
   function buildChargeMessage(name, pendingItems, owed) {
     var linhas = pendingItems
       .slice()
       .sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); })
       .map(function (s) {
-        var sub = (s.quantidade || 0) * (s.precoUnitario || state.price);
-        return "- " + fmtDate(s.data) + ": " + s.quantidade + " tortinha" + (s.quantidade > 1 ? "s" : "") + " (" + fmtBRL(sub) + ")";
+        var sub = valorDe(s);
+        var descNote = s.desconto ? " − desconto " + fmtBRL(s.desconto) : "";
+        return "- " + fmtDate(s.data) + ": " + s.quantidade + " " + labelDe(s) + descNote + " (" + fmtBRL(sub) + ")";
       })
       .join("\n");
     return (
       "Oi, " + name + "! 🥧\n\n" +
       "Esta é uma mensagem automática do sistema de gerenciamento de tortinhas que eu criei para controlar as vendas fiado.\n\n" +
-      "Você tem tortinha(s) em aberto:\n" + linhas + "\n\n" +
+      "Você tem consumo em aberto:\n" + linhas + "\n\n" +
       "Total a pagar: " + fmtBRL(owed) + "\n\n" +
       "Pra quitar, pode fazer o Pix pra:\n" +
       "Chave: " + PIX_CHAVE + "\n" +
@@ -886,12 +991,13 @@
   }
 
   function lineHTML(sale) {
-    var sub = (sale.quantidade || 0) * (sale.precoUnitario || state.price);
+    var sub = valorDe(sale);
     var checked = !!sale.pago;
+    var descNote = sale.desconto ? ' <span class="line-desc">(−' + fmtBRL(sale.desconto) + ')</span>' : "";
     return (
       '<div class="line-item' + (checked ? " is-paid" : "") + '" data-id="' + sale.id + '">' +
         '<button type="button" class="line-check' + (checked ? " checked" : "") + '" data-action="toggle" data-id="' + sale.id + '" aria-label="Marcar pago">' + (checked ? "✓" : "") + '</button>' +
-        '<div class="line-text"><span class="qty">' + sale.quantidade + ' tortinha' + (sale.quantidade > 1 ? "s" : "") + '</span> · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
+        '<div class="line-text"><span class="qty">' + sale.quantidade + ' ' + labelDe(sale) + '</span>' + descNote + ' · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
         '<div class="line-sub">' + fmtBRL(sub) + '</div>' +
         '<button type="button" class="line-del" data-action="delete" data-id="' + sale.id + '" aria-label="Remover">✕</button>' +
       '</div>'
@@ -900,7 +1006,7 @@
 
   function personCard(name, sales, isOpenGroup) {
     var pending = sales.filter(function (s) { return !s.pago; });
-    var owed = pending.reduce(function (sum, s) { return sum + (s.quantidade || 0) * (s.precoUnitario || state.price); }, 0);
+    var owed = pending.reduce(function (sum, s) { return sum + valorDe(s); }, 0);
     var totalQty = pending.reduce(function (sum, s) { return sum + (s.quantidade || 0); }, 0);
     var isExpanded = expanded.has(name);
     var sorted = sales.slice().sort(function (a, b) { return (b.criadoEm || 0) - (a.criadoEm || 0); });
@@ -914,7 +1020,7 @@
     var head = document.createElement("div");
     head.className = "person-head";
     var metaText = owed > 0
-      ? totalQty + " tortinha" + (totalQty > 1 ? "s" : "") + " pendente" + (totalQty > 1 ? "s" : "")
+      ? totalQty + " item" + (totalQty > 1 ? "s" : "") + " pendente" + (totalQty > 1 ? "s" : "")
       : "tudo quitado";
     if (firstDate) metaText += " · desde " + fmtDate(firstDate);
     head.innerHTML =
@@ -987,6 +1093,7 @@
     renderPriceSlot();
     renderNames();
     renderChips();
+    renderProductToggle();
 
     var groups = groupByName(state.sales);
     var pendingGroups = [];
@@ -994,7 +1101,7 @@
 
     groups.forEach(function (sales, name) {
       var owed = sales.filter(function (s) { return !s.pago; })
-        .reduce(function (sum, s) { return sum + (s.quantidade || 0) * (s.precoUnitario || state.price); }, 0);
+        .reduce(function (sum, s) { return sum + valorDe(s); }, 0);
       if (owed > 0) pendingGroups.push([name, sales, owed]);
       else paidGroups.push([name, sales, 0]);
     });
@@ -1014,7 +1121,7 @@
       var empty = document.createElement("div");
       empty.className = "empty-state";
       empty.innerHTML = groups.size === 0
-        ? '<div class="emoji-free">✎</div><div>Nenhuma tortinha fiada ainda.<br/>Anote a primeira venda acima.</div>'
+        ? '<div class="emoji-free">✎</div><div>Nenhuma venda fiada ainda.<br/>Anote a primeira venda acima.</div>'
         : '<div class="emoji-free">✓</div><div>Ninguém devendo no momento!</div>';
       els.pendingList.appendChild(empty);
     } else {
@@ -1051,7 +1158,13 @@
 
   function updateSubtotalPreview() {
     var qty = parseInt(els.qtyInput.value, 10) || 1;
-    els.subtotalPreview.textContent = fmtBRL(qty * state.price);
+    var preco = state.precos[selectedProduto];
+    var calc = calcValor(selectedProduto, qty, preco);
+    var html = "Fica em <b>" + fmtBRL(calc.total) + "</b>";
+    if (calc.desconto > 0) {
+      html += ' <span class="line-desc">(desconto de ' + fmtBRL(calc.desconto) + ')</span>';
+    }
+    els.subtotalPreview.innerHTML = html;
   }
 
   // ---------- events ----------
@@ -1079,10 +1192,14 @@
     var qty = parseInt(els.qtyInput.value, 10) || 1;
     if (!nome) return;
 
+    var preco = state.precos[selectedProduto];
+    var calc = calcValor(selectedProduto, qty, preco);
     var saleData = {
       nome: nome,
+      produto: selectedProduto,
       quantidade: qty,
-      precoUnitario: state.price,
+      precoUnitario: preco,
+      desconto: calc.desconto,
       data: todayISO(),
       pago: false,
       pagoEm: null,
