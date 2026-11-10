@@ -120,13 +120,6 @@
     gap: 12px;
   }
 
-  #price-slot {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-  }
-
   .price-pill {
     background: var(--gold-soft);
     color: var(--gold);
@@ -271,27 +264,54 @@
     color: var(--paper-raised);
   }
 
-  .product-toggle {
+  #price-slot {
     display: flex;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
   }
-  .product-btn {
-    flex: 1;
+
+  .product-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+  }
+  .product-options[hidden] { display: none; }
+  .product-hint {
+    grid-column: 1 / -1;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .product-opt {
     border: 1.5px solid var(--rule);
     background: var(--paper);
-    color: var(--ink-soft);
-    border-radius: 12px;
-    padding: 9px 10px;
+    color: var(--ink);
+    border-radius: 14px;
+    padding: 12px 10px;
     font: inherit;
-    font-size: 0.88rem;
+    font-size: 0.9rem;
     font-weight: 700;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
   }
-  .product-btn.active {
+  .product-opt .p-price {
+    font-size: 0.82rem;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+  .product-opt:hover { border-color: var(--accent); }
+  .product-opt.active {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--paper-raised);
   }
+  .product-opt.active .p-price { color: var(--paper-raised); }
+  .price-pill { cursor: default; }
 
   .stepper {
     display: flex;
@@ -583,7 +603,6 @@
 
   <form id="add-form">
     <div class="row-title">Anotar venda</div>
-    <div class="product-toggle" id="product-toggle"></div>
     <div class="name-chips" id="name-chips"></div>
     <div class="field-row">
       <input id="nome-input" name="nome" type="text" placeholder="Nome de quem levou" autocomplete="off" list="nomes-conhecidos" required />
@@ -594,9 +613,10 @@
       </div>
     </div>
     <datalist id="nomes-conhecidos"></datalist>
+    <div class="product-options" id="product-options" hidden></div>
     <div class="add-footer">
-      <div class="subtotal-preview" id="subtotal-preview"></div>
-      <button type="submit" id="submit-btn">Anotar</button>
+      <div class="subtotal-preview" id="subtotal-wrap">Escolha o nome</div>
+      <button type="submit" id="submit-btn" disabled>Anotar</button>
     </div>
   </form>
 
@@ -623,39 +643,8 @@
 (function () {
   "use strict";
 
-  var state = { sales: [], precos: { tortinha: 8.5, brigadeiro: 4 }, ready: false, localMode: false };
+  var state = { sales: [], price: 8.5, ready: false, localMode: false };
   var QUICK_NAMES = ["Carol", "Daniel", "Gabi", "Polly"];
-  var PRODUTOS = {
-    tortinha: { singular: "tortinha", plural: "tortinhas", label: "Tortinha" },
-    brigadeiro: { singular: "brigadeiro", plural: "brigadeiros", label: "Brigadeiro" }
-  };
-  var selectedProduto = "tortinha";
-
-  function produtoDe(sale) {
-    return PRODUTOS[sale.produto] ? sale.produto : "tortinha";
-  }
-  function precoDe(sale) {
-    var p = produtoDe(sale);
-    return typeof sale.precoUnitario === "number" ? sale.precoUnitario : state.precos[p];
-  }
-  // 5 brigadeiros numa mesma venda = 1 de graça (desconto = preço de 1 unidade
-  // por grupo completo de 5). Não se aplica a tortinha nem a brigadeiros
-  // comprados avulsos em vendas separadas que só somam 5 ao longo do tempo.
-  function calcValor(produto, qty, precoUnitario) {
-    var bruto = qty * precoUnitario;
-    var desconto = produto === "brigadeiro" ? Math.floor(qty / 5) * precoUnitario : 0;
-    return { bruto: bruto, desconto: desconto, total: bruto - desconto };
-  }
-  function valorDe(sale) {
-    var qty = sale.quantidade || 0;
-    var preco = precoDe(sale);
-    var desconto = typeof sale.desconto === "number" ? sale.desconto : calcValor(produtoDe(sale), qty, preco).desconto;
-    return qty * preco - desconto;
-  }
-  function labelDe(sale) {
-    var p = PRODUTOS[produtoDe(sale)];
-    return (sale.quantidade || 0) > 1 ? p.plural : p.singular;
-  }
   // window.claude only ever exists when served by claude.ai (even if a
   // shortcut/direct link there still can't reach the account's storage);
   // a self-hosted copy (GitHub Pages, a saved file) never has it at all.
@@ -669,6 +658,44 @@
     carol: "5531987415344",
     gabi: "5531972266852"
   };
+
+  var PRODUTOS = {
+    tortinha: { nome: "Tortinha", singular: "tortinha", plural: "tortinhas", preco: 8.5 },
+    palha: { nome: "Palha italiana", singular: "palha italiana", plural: "palhas italianas", preco: 6.5 },
+    brigadeiro: { nome: "Brigadeiro", singular: "brigadeiro", plural: "brigadeiros", preco: 4 }
+  };
+  var selectedProduct = null;
+
+  // Old entries (before products existed) were all tortinhas.
+  function prodOf(s) { return PRODUTOS[s.produto] ? s.produto : "tortinha"; }
+  function itemLabel(key, qty) {
+    var p = PRODUTOS[key];
+    return qty + " " + (qty > 1 ? p.plural : p.singular);
+  }
+  // Brigadeiro: cada grupo completo de 5 numa mesma venda dá 1 de graça
+  // (desconto = preço de 1 unidade). Não vale pra brigadeiros avulsos
+  // comprados em vendas separadas que só somam 5 ao longo do tempo.
+  function calcDesconto(produtoKey, qty, preco) {
+    return produtoKey === "brigadeiro" ? Math.floor(qty / 5) * preco : 0;
+  }
+  function valorDe(s) {
+    var produtoKey = prodOf(s);
+    var qty = s.quantidade || 0;
+    var preco = typeof s.precoUnitario === "number" ? s.precoUnitario : PRODUTOS[produtoKey].preco;
+    var desconto = typeof s.desconto === "number" ? s.desconto : calcDesconto(produtoKey, qty, preco);
+    return qty * preco - desconto;
+  }
+  function summarize(items) {
+    var counts = {};
+    items.forEach(function (s) {
+      var k = prodOf(s);
+      counts[k] = (counts[k] || 0) + (s.quantidade || 0);
+    });
+    return Object.keys(PRODUTOS)
+      .filter(function (k) { return counts[k]; })
+      .map(function (k) { return itemLabel(k, counts[k]); })
+      .join(" + ");
+  }
 
   function normName(s) {
     return (s || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -693,7 +720,7 @@
 
   // ---------- storage layer: db capability with localStorage fallback ----------
   var LOCAL_SALES_KEY = "tortinhas_vendas_v1";
-  var LOCAL_PRECOS_KEY = "tortinhas_precos_v1";
+  var LOCAL_PRICE_KEY = "tortinhas_preco_v1";
   var store = null;
 
   // Only used to bootstrap a brand-new, empty localStorage (first ever
@@ -701,24 +728,24 @@
   // opened through claude.ai — so today's real debts aren't lost in
   // the switch. Never touched again once storage has anything in it.
   var SEED_SALES = [
-    { id: "seed-daniel-0915", nome: "Daniel", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000000 },
-    { id: "seed-polly-1021", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
-    { id: "seed-polly-1020a", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610201 },
-    { id: "seed-polly-1020b", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610202 },
-    { id: "seed-polly-1015", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
-    { id: "seed-polly-1014a", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610141 },
-    { id: "seed-polly-1014b", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610142 },
-    { id: "seed-polly-1013a", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610131 },
-    { id: "seed-polly-1013b", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610132 },
-    { id: "seed-polly-1001", nome: "Polly", quantidade: 1, precoUnitario: 8.5, data: "2026-10-01", pago: false, pagoEm: null, criadoEm: 202610010 },
-    { id: "seed-gabi-1022", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-22", pago: false, pagoEm: null, criadoEm: 202610220 },
-    { id: "seed-gabi-1021a", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610211 },
-    { id: "seed-gabi-1021b", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610212 },
-    { id: "seed-gabi-1021c", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610213 },
-    { id: "seed-gabi-1020", nome: "Gabi", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610200 },
-    { id: "seed-carol-1021", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
-    { id: "seed-carol-1015", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
-    { id: "seed-carol-1014", nome: "Carol", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610140 }
+    { id: "seed-daniel-0915", nome: "Daniel", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-09-15", pago: false, pagoEm: null, criadoEm: 1789900000000 },
+    { id: "seed-polly-1021", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
+    { id: "seed-polly-1020a", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610201 },
+    { id: "seed-polly-1020b", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610202 },
+    { id: "seed-polly-1015", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
+    { id: "seed-polly-1014a", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610141 },
+    { id: "seed-polly-1014b", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610142 },
+    { id: "seed-polly-1013a", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610131 },
+    { id: "seed-polly-1013b", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-13", pago: false, pagoEm: null, criadoEm: 202610132 },
+    { id: "seed-polly-1001", nome: "Polly", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-01", pago: false, pagoEm: null, criadoEm: 202610010 },
+    { id: "seed-gabi-1022", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-22", pago: false, pagoEm: null, criadoEm: 202610220 },
+    { id: "seed-gabi-1021a", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610211 },
+    { id: "seed-gabi-1021b", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610212 },
+    { id: "seed-gabi-1021c", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610213 },
+    { id: "seed-gabi-1020", nome: "Gabi", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-20", pago: false, pagoEm: null, criadoEm: 202610200 },
+    { id: "seed-carol-1021", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-21", pago: false, pagoEm: null, criadoEm: 202610210 },
+    { id: "seed-carol-1015", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-15", pago: false, pagoEm: null, criadoEm: 202610150 },
+    { id: "seed-carol-1014", nome: "Carol", produto: "tortinha", quantidade: 1, precoUnitario: 8.5, data: "2026-10-14", pago: false, pagoEm: null, criadoEm: 202610140 }
   ];
 
   function localLoad() {
@@ -732,21 +759,12 @@
       }
     } catch (e) { state.sales = []; }
     try {
-      var raw2 = localStorage.getItem(LOCAL_PRECOS_KEY);
-      if (raw2) {
-        state.precos = Object.assign({}, state.precos, JSON.parse(raw2));
-      } else {
-        // migrate the old single-product price key, if this device has one
-        var oldPrice = localStorage.getItem("tortinhas_preco_v1");
-        if (oldPrice) state.precos.tortinha = parseFloat(oldPrice);
-      }
-    } catch (e) {}
+      var p = localStorage.getItem(LOCAL_PRICE_KEY);
+      state.price = p ? parseFloat(p) : 8.5;
+    } catch (e) { state.price = 8.5; }
   }
   function localSave() {
     try { localStorage.setItem(LOCAL_SALES_KEY, JSON.stringify(state.sales)); } catch (e) {}
-  }
-  function localSavePrecos() {
-    try { localStorage.setItem(LOCAL_PRECOS_KEY, JSON.stringify(state.precos)); } catch (e) {}
   }
 
   function makeLocalStore() {
@@ -778,9 +796,9 @@
         localSave();
         render();
       },
-      setPrice: function (produto, v) {
-        state.precos[produto] = v;
-        localSavePrecos();
+      setPrice: function (v) {
+        state.price = v;
+        try { localStorage.setItem(LOCAL_PRICE_KEY, String(v)); } catch (e) {}
         render();
         return Promise.resolve();
       }
@@ -789,7 +807,7 @@
 
   function makeDbStore(db) {
     var vendas = db.collection("vendas");
-    var precosDoc = db.doc("config/precos");
+    var priceDoc = db.doc("config/preco");
 
     vendas.onSnapshot(function (snap) {
       state.sales = snap.docs.map(function (d) {
@@ -804,11 +822,11 @@
       render();
     });
 
-    precosDoc.onSnapshot(function (snap) {
+    priceDoc.onSnapshot(function (snap) {
       var data = snap.exists ? snap.data() : null;
-      if (data) state.precos = Object.assign({}, state.precos, data);
+      state.price = data && typeof data.valor === "number" ? data.valor : 8.5;
       render();
-    }, function () { /* keep default prices on error */ });
+    }, function () { /* keep default price on error */ });
 
     return {
       addSale: function (data) {
@@ -825,10 +843,8 @@
         delete copy.id;
         return vendas.add(copy);
       },
-      setPrice: function (produto, v) {
-        var patch = {};
-        patch[produto] = v;
-        return precosDoc.set(Object.assign({}, state.precos, patch));
+      setPrice: function (v) {
+        return priceDoc.set({ valor: v });
       }
     };
   }
@@ -847,7 +863,9 @@
     nomes: document.getElementById("nomes-conhecidos"),
     nomeInput: document.getElementById("nome-input"),
     qtyInput: document.getElementById("qty-input"),
-    subtotalPreview: document.getElementById("subtotal-preview")
+    subtotalWrap: document.getElementById("subtotal-wrap"),
+    productOptions: document.getElementById("product-options"),
+    submitBtn: document.getElementById("submit-btn")
   };
 
   function groupByName(sales) {
@@ -863,54 +881,40 @@
 
   function renderPriceSlot() {
     els.priceSlot.innerHTML = "";
-    Object.keys(PRODUTOS).forEach(function (produto) {
-      var pill = document.createElement("button");
-      pill.type = "button";
+    Object.keys(PRODUTOS).forEach(function (key) {
+      var pill = document.createElement("div");
       pill.className = "price-pill";
-      pill.textContent = PRODUTOS[produto].label + " " + fmtBRL(state.precos[produto]) + "/un";
-      pill.addEventListener("click", function () { renderPriceEdit(produto); });
+      pill.textContent = PRODUTOS[key].nome + " " + fmtBRL(PRODUTOS[key].preco);
       els.priceSlot.appendChild(pill);
     });
   }
 
-  function renderPriceEdit(produto) {
-    els.priceSlot.innerHTML = "";
-    Object.keys(PRODUTOS).forEach(function (p) {
-      if (p !== produto) {
-        var otherPill = document.createElement("button");
-        otherPill.type = "button";
-        otherPill.className = "price-pill";
-        otherPill.textContent = PRODUTOS[p].label + " " + fmtBRL(state.precos[p]) + "/un";
-        otherPill.addEventListener("click", function () { renderPriceEdit(p); });
-        els.priceSlot.appendChild(otherPill);
-        return;
-      }
-      var wrap = document.createElement("div");
-      wrap.className = "price-edit";
-      var label = document.createElement("span");
-      label.textContent = PRODUTOS[p].label;
-      var input = document.createElement("input");
-      input.type = "number";
-      input.step = "0.10";
-      input.min = "0";
-      input.value = state.precos[p].toFixed(2);
-      var btn = document.createElement("button");
-      btn.textContent = "Ok";
-      btn.addEventListener("click", function () {
-        var v = parseFloat(input.value);
-        if (!isNaN(v) && v > 0) store.setPrice(p, Math.round(v * 100) / 100);
-        renderPriceSlot();
+  function renderProducts() {
+    var hasName = !!els.nomeInput.value.trim();
+    if (!hasName) selectedProduct = null;
+    els.productOptions.hidden = !hasName;
+    els.productOptions.innerHTML = "";
+    if (hasName) {
+      var hint = document.createElement("div");
+      hint.className = "product-hint";
+      hint.textContent = "O que " + els.nomeInput.value.trim() + " levou?";
+      els.productOptions.appendChild(hint);
+      Object.keys(PRODUTOS).forEach(function (k) {
+        var p = PRODUTOS[k];
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "product-opt" + (selectedProduct === k ? " active" : "");
+        btn.setAttribute("aria-pressed", selectedProduct === k ? "true" : "false");
+        btn.innerHTML = '<span>' + p.nome + '</span><span class="p-price">' + fmtBRL(p.preco) + '</span>';
+        btn.addEventListener("click", function () {
+          selectedProduct = k;
+          renderProducts();
+        });
+        els.productOptions.appendChild(btn);
       });
-      input.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") { e.preventDefault(); btn.click(); }
-      });
-      wrap.appendChild(label);
-      wrap.appendChild(input);
-      wrap.appendChild(btn);
-      els.priceSlot.appendChild(wrap);
-      input.focus();
-      input.select();
-    });
+    }
+    els.submitBtn.disabled = !(hasName && selectedProduct);
+    updateSubtotalPreview();
   }
 
   function renderNames() {
@@ -935,27 +939,9 @@
       btn.textContent = n;
       btn.addEventListener("click", function () {
         els.nomeInput.value = n;
+        selectedProduct = null;
         renderChips();
-        els.qtyInput.focus();
-        els.qtyInput.select();
-      });
-      wrap.appendChild(btn);
-    });
-  }
-
-  function renderProductToggle() {
-    var wrap = document.getElementById("product-toggle");
-    if (!wrap) return;
-    wrap.innerHTML = "";
-    Object.keys(PRODUTOS).forEach(function (produto) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "product-btn" + (selectedProduto === produto ? " active" : "");
-      btn.textContent = PRODUTOS[produto].label;
-      btn.addEventListener("click", function () {
-        selectedProduto = produto;
-        renderProductToggle();
-        updateSubtotalPreview();
+        renderProducts();
       });
       wrap.appendChild(btn);
     });
@@ -968,13 +954,13 @@
       .map(function (s) {
         var sub = valorDe(s);
         var descNote = s.desconto ? " − desconto " + fmtBRL(s.desconto) : "";
-        return "- " + fmtDate(s.data) + ": " + s.quantidade + " " + labelDe(s) + descNote + " (" + fmtBRL(sub) + ")";
+        return "- " + fmtDate(s.data) + ": " + itemLabel(prodOf(s), s.quantidade) + descNote + " (" + fmtBRL(sub) + ")";
       })
       .join("\n");
     return (
       "Oi, " + name + "! 🥧\n\n" +
       "Esta é uma mensagem automática do sistema de gerenciamento de tortinhas que eu criei para controlar as vendas fiado.\n\n" +
-      "Você tem consumo em aberto:\n" + linhas + "\n\n" +
+      "Você tem doces em aberto:\n" + linhas + "\n\n" +
       "Total a pagar: " + fmtBRL(owed) + "\n\n" +
       "Pra quitar, pode fazer o Pix pra:\n" +
       "Chave: " + PIX_CHAVE + "\n" +
@@ -997,7 +983,7 @@
     return (
       '<div class="line-item' + (checked ? " is-paid" : "") + '" data-id="' + sale.id + '">' +
         '<button type="button" class="line-check' + (checked ? " checked" : "") + '" data-action="toggle" data-id="' + sale.id + '" aria-label="Marcar pago">' + (checked ? "✓" : "") + '</button>' +
-        '<div class="line-text"><span class="qty">' + sale.quantidade + ' ' + labelDe(sale) + '</span>' + descNote + ' · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
+        '<div class="line-text"><span class="qty">' + itemLabel(prodOf(sale), sale.quantidade) + '</span>' + descNote + ' · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
         '<div class="line-sub">' + fmtBRL(sub) + '</div>' +
         '<button type="button" class="line-del" data-action="delete" data-id="' + sale.id + '" aria-label="Remover">✕</button>' +
       '</div>'
@@ -1020,7 +1006,7 @@
     var head = document.createElement("div");
     head.className = "person-head";
     var metaText = owed > 0
-      ? totalQty + " item" + (totalQty > 1 ? "s" : "") + " pendente" + (totalQty > 1 ? "s" : "")
+      ? summarize(pending) + " pendente" + (totalQty > 1 ? "s" : "")
       : "tudo quitado";
     if (firstDate) metaText += " · desde " + fmtDate(firstDate);
     head.innerHTML =
@@ -1093,7 +1079,7 @@
     renderPriceSlot();
     renderNames();
     renderChips();
-    renderProductToggle();
+    renderProducts();
 
     var groups = groupByName(state.sales);
     var pendingGroups = [];
@@ -1158,13 +1144,17 @@
 
   function updateSubtotalPreview() {
     var qty = parseInt(els.qtyInput.value, 10) || 1;
-    var preco = state.precos[selectedProduto];
-    var calc = calcValor(selectedProduto, qty, preco);
-    var html = "Fica em <b>" + fmtBRL(calc.total) + "</b>";
-    if (calc.desconto > 0) {
-      html += ' <span class="line-desc">(desconto de ' + fmtBRL(calc.desconto) + ')</span>';
+    if (!els.nomeInput.value.trim()) {
+      els.subtotalWrap.textContent = "Escolha o nome";
+    } else if (!selectedProduct) {
+      els.subtotalWrap.textContent = "Escolha o produto";
+    } else {
+      var preco = PRODUTOS[selectedProduct].preco;
+      var desconto = calcDesconto(selectedProduct, qty, preco);
+      var html = "Fica em <b>" + fmtBRL(qty * preco - desconto) + "</b>";
+      if (desconto > 0) html += ' <span class="line-desc">(desconto de ' + fmtBRL(desconto) + ')</span>';
+      els.subtotalWrap.innerHTML = html;
     }
-    els.subtotalPreview.innerHTML = html;
   }
 
   // ---------- events ----------
@@ -1179,56 +1169,76 @@
     updateSubtotalPreview();
   });
   els.qtyInput.addEventListener("input", updateSubtotalPreview);
-  els.nomeInput.addEventListener("input", renderChips);
+  els.nomeInput.addEventListener("input", function () {
+    renderChips();
+    renderProducts();
+  });
 
   // Sales typed before the storage backend has finished connecting are
   // held here so the list updates instantly no matter what; settle()
   // flushes them into real storage once it's ready.
   var queuedSales = [];
+  var submitLocked = false;
 
   document.getElementById("add-form").addEventListener("submit", function (e) {
     e.preventDefault();
+    // Ignore double taps / repeated Enter while a sale is being recorded.
+    if (submitLocked) return;
     var nome = els.nomeInput.value.trim();
     var qty = parseInt(els.qtyInput.value, 10) || 1;
     if (!nome) return;
+    if (!selectedProduct) {
+      showToast("Escolha o produto");
+      return;
+    }
 
-    var preco = state.precos[selectedProduto];
-    var calc = calcValor(selectedProduto, qty, preco);
+    var preco = PRODUTOS[selectedProduct].preco;
     var saleData = {
       nome: nome,
-      produto: selectedProduto,
+      produto: selectedProduct,
       quantidade: qty,
       precoUnitario: preco,
-      desconto: calc.desconto,
+      desconto: calcDesconto(selectedProduct, qty, preco),
       data: todayISO(),
       pago: false,
       pagoEm: null,
       criadoEm: Date.now()
     };
 
-    // Show it in the list immediately — don't wait on the storage
-    // round-trip, so the click always has visible, instant feedback.
-    var optimistic = Object.assign(
-      { id: "pending-" + Date.now() + Math.random().toString(36).slice(2, 7) },
-      saleData
-    );
-    state.sales.push(optimistic);
-    render();
+    submitLocked = true;
+    els.submitBtn.disabled = true;
+    setTimeout(function () { submitLocked = false; renderProducts(); }, 800);
 
-    if (store) {
-      Promise.resolve(store.addSale(saleData)).catch(function () {
-        state.sales = state.sales.filter(function (s) { return s.id !== optimistic.id; });
-        render();
-        showToast("Não deu pra salvar agora, tenta de novo");
-      });
+    if (store && state.localMode) {
+      // Local storage adds the sale to the list itself, instantly —
+      // adding a preview copy too is what caused the double entry.
+      store.addSale(saleData);
     } else {
-      queuedSales.push(optimistic);
+      // Show it in the list immediately — don't wait on the storage
+      // round-trip. The synced list replaces this preview when it arrives.
+      var optimistic = Object.assign(
+        { id: "pending-" + Date.now() + Math.random().toString(36).slice(2, 7) },
+        saleData
+      );
+      state.sales.push(optimistic);
+      render();
+
+      if (store) {
+        Promise.resolve(store.addSale(saleData)).catch(function () {
+          state.sales = state.sales.filter(function (s) { return s.id !== optimistic.id; });
+          render();
+          showToast("Não deu pra salvar agora, tenta de novo");
+        });
+      } else {
+        queuedSales.push(optimistic);
+      }
     }
 
     els.nomeInput.value = "";
     els.qtyInput.value = "1";
-    updateSubtotalPreview();
+    selectedProduct = null;
     renderChips();
+    renderProducts();
     els.nomeInput.focus();
   });
 
