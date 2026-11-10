@@ -264,9 +264,16 @@
     color: var(--paper-raised);
   }
 
+  #price-slot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
   .product-options {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 10px;
   }
   .product-options[hidden] { display: none; }
@@ -465,6 +472,7 @@
   }
   .line-text .qty { font-weight: 600; }
   .line-text .date { color: var(--ink-faint); font-size: 0.78rem; }
+  .line-text .line-desc { color: var(--paid); font-size: 0.78rem; font-weight: 600; }
   .line-item.is-paid .line-text { color: var(--ink-faint); text-decoration: line-through; }
   .line-sub {
     font-variant-numeric: tabular-nums;
@@ -653,7 +661,8 @@
 
   var PRODUTOS = {
     tortinha: { nome: "Tortinha", singular: "tortinha", plural: "tortinhas", preco: 8.5 },
-    palha: { nome: "Palha italiana", singular: "palha italiana", plural: "palhas italianas", preco: 6.5 }
+    palha: { nome: "Palha italiana", singular: "palha italiana", plural: "palhas italianas", preco: 6.5 },
+    brigadeiro: { nome: "Brigadeiro", singular: "brigadeiro", plural: "brigadeiros", preco: 4 }
   };
   var selectedProduct = null;
 
@@ -662,6 +671,19 @@
   function itemLabel(key, qty) {
     var p = PRODUTOS[key];
     return qty + " " + (qty > 1 ? p.plural : p.singular);
+  }
+  // Brigadeiro: cada grupo completo de 5 numa mesma venda dá 1 de graça
+  // (desconto = preço de 1 unidade). Não vale pra brigadeiros avulsos
+  // comprados em vendas separadas que só somam 5 ao longo do tempo.
+  function calcDesconto(produtoKey, qty, preco) {
+    return produtoKey === "brigadeiro" ? Math.floor(qty / 5) * preco : 0;
+  }
+  function valorDe(s) {
+    var produtoKey = prodOf(s);
+    var qty = s.quantidade || 0;
+    var preco = typeof s.precoUnitario === "number" ? s.precoUnitario : PRODUTOS[produtoKey].preco;
+    var desconto = typeof s.desconto === "number" ? s.desconto : calcDesconto(produtoKey, qty, preco);
+    return qty * preco - desconto;
   }
   function summarize(items) {
     var counts = {};
@@ -859,10 +881,12 @@
 
   function renderPriceSlot() {
     els.priceSlot.innerHTML = "";
-    var pill = document.createElement("div");
-    pill.className = "price-pill";
-    pill.textContent = "Tortinha " + fmtBRL(PRODUTOS.tortinha.preco) + " · Palha " + fmtBRL(PRODUTOS.palha.preco);
-    els.priceSlot.appendChild(pill);
+    Object.keys(PRODUTOS).forEach(function (key) {
+      var pill = document.createElement("div");
+      pill.className = "price-pill";
+      pill.textContent = PRODUTOS[key].nome + " " + fmtBRL(PRODUTOS[key].preco);
+      els.priceSlot.appendChild(pill);
+    });
   }
 
   function renderProducts() {
@@ -928,8 +952,9 @@
       .slice()
       .sort(function (a, b) { return (a.data || "").localeCompare(b.data || ""); })
       .map(function (s) {
-        var sub = (s.quantidade || 0) * (s.precoUnitario || state.price);
-        return "- " + fmtDate(s.data) + ": " + itemLabel(prodOf(s), s.quantidade) + " (" + fmtBRL(sub) + ")";
+        var sub = valorDe(s);
+        var descNote = s.desconto ? " − desconto " + fmtBRL(s.desconto) : "";
+        return "- " + fmtDate(s.data) + ": " + itemLabel(prodOf(s), s.quantidade) + descNote + " (" + fmtBRL(sub) + ")";
       })
       .join("\n");
     return (
@@ -952,12 +977,13 @@
   }
 
   function lineHTML(sale) {
-    var sub = (sale.quantidade || 0) * (sale.precoUnitario || state.price);
+    var sub = valorDe(sale);
     var checked = !!sale.pago;
+    var descNote = sale.desconto ? ' <span class="line-desc">(−' + fmtBRL(sale.desconto) + ')</span>' : "";
     return (
       '<div class="line-item' + (checked ? " is-paid" : "") + '" data-id="' + sale.id + '">' +
         '<button type="button" class="line-check' + (checked ? " checked" : "") + '" data-action="toggle" data-id="' + sale.id + '" aria-label="Marcar pago">' + (checked ? "✓" : "") + '</button>' +
-        '<div class="line-text"><span class="qty">' + itemLabel(prodOf(sale), sale.quantidade) + '</span> · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
+        '<div class="line-text"><span class="qty">' + itemLabel(prodOf(sale), sale.quantidade) + '</span>' + descNote + ' · <span class="date">' + fmtDate(sale.data) + '</span></div>' +
         '<div class="line-sub">' + fmtBRL(sub) + '</div>' +
         '<button type="button" class="line-del" data-action="delete" data-id="' + sale.id + '" aria-label="Remover">✕</button>' +
       '</div>'
@@ -966,7 +992,7 @@
 
   function personCard(name, sales, isOpenGroup) {
     var pending = sales.filter(function (s) { return !s.pago; });
-    var owed = pending.reduce(function (sum, s) { return sum + (s.quantidade || 0) * (s.precoUnitario || state.price); }, 0);
+    var owed = pending.reduce(function (sum, s) { return sum + valorDe(s); }, 0);
     var totalQty = pending.reduce(function (sum, s) { return sum + (s.quantidade || 0); }, 0);
     var isExpanded = expanded.has(name);
     var sorted = sales.slice().sort(function (a, b) { return (b.criadoEm || 0) - (a.criadoEm || 0); });
@@ -1061,7 +1087,7 @@
 
     groups.forEach(function (sales, name) {
       var owed = sales.filter(function (s) { return !s.pago; })
-        .reduce(function (sum, s) { return sum + (s.quantidade || 0) * (s.precoUnitario || state.price); }, 0);
+        .reduce(function (sum, s) { return sum + valorDe(s); }, 0);
       if (owed > 0) pendingGroups.push([name, sales, owed]);
       else paidGroups.push([name, sales, 0]);
     });
@@ -1081,7 +1107,7 @@
       var empty = document.createElement("div");
       empty.className = "empty-state";
       empty.innerHTML = groups.size === 0
-        ? '<div class="emoji-free">✎</div><div>Nenhuma tortinha fiada ainda.<br/>Anote a primeira venda acima.</div>'
+        ? '<div class="emoji-free">✎</div><div>Nenhuma venda fiada ainda.<br/>Anote a primeira venda acima.</div>'
         : '<div class="emoji-free">✓</div><div>Ninguém devendo no momento!</div>';
       els.pendingList.appendChild(empty);
     } else {
@@ -1123,7 +1149,11 @@
     } else if (!selectedProduct) {
       els.subtotalWrap.textContent = "Escolha o produto";
     } else {
-      els.subtotalWrap.innerHTML = "Fica em <b>" + fmtBRL(qty * PRODUTOS[selectedProduct].preco) + "</b>";
+      var preco = PRODUTOS[selectedProduct].preco;
+      var desconto = calcDesconto(selectedProduct, qty, preco);
+      var html = "Fica em <b>" + fmtBRL(qty * preco - desconto) + "</b>";
+      if (desconto > 0) html += ' <span class="line-desc">(desconto de ' + fmtBRL(desconto) + ')</span>';
+      els.subtotalWrap.innerHTML = html;
     }
   }
 
@@ -1158,15 +1188,17 @@
     var qty = parseInt(els.qtyInput.value, 10) || 1;
     if (!nome) return;
     if (!selectedProduct) {
-      showToast("Escolha Tortinha ou Palha italiana");
+      showToast("Escolha o produto");
       return;
     }
 
+    var preco = PRODUTOS[selectedProduct].preco;
     var saleData = {
       nome: nome,
       produto: selectedProduct,
       quantidade: qty,
-      precoUnitario: PRODUTOS[selectedProduct].preco,
+      precoUnitario: preco,
+      desconto: calcDesconto(selectedProduct, qty, preco),
       data: todayISO(),
       pago: false,
       pagoEm: null,
