@@ -415,9 +415,10 @@ def fmt_t(x):
 def cmd_transcrever(a):
     """Só a transcrição (com minutos e segundos), um .txt por vídeo e um arquivo único para colar no chat."""
     from faster_whisper import WhisperModel
-    videos = sorted(p for p in Path(a.videos).iterdir() if p.suffix.lower() in VIDEO_EXT)
+    aceitos = VIDEO_EXT | {".mp3", ".wav", ".m4a", ".aac", ".ogg"}  # também aceita só o áudio
+    videos = sorted(p for p in Path(a.videos).iterdir() if p.suffix.lower() in aceitos)
     if not videos:
-        sys.exit(f"Nenhum vídeo em {a.videos}")
+        sys.exit(f"Nenhum vídeo ou áudio em {a.videos}")
     saida = Path(a.saida)
     saida.mkdir(parents=True, exist_ok=True)
     whisper = WhisperModel(a.modelo, device="auto", compute_type="int8")
