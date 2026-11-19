@@ -12,6 +12,14 @@ As imagens `01.png` a `50.png` (fundo transparente, 1612x638) vêm num zip envia
 1. Confirme que os vídeos e as caixinhas estão acessíveis. Esta sessão pode não ver o computador da Izabela, e o conector do Google Drive só baixa arquivos de até 10 MB. Se os arquivos não chegarem, diga isso em vez de improvisar, e ofereça rodar o script no PC dela (ver "Rodar no PC").
 2. Comece por **um** vídeo curto. Só processe o lote depois que ela aprovar o resultado.
 
+## REGRA PRINCIPAL: a caixinha certa é a do ASSUNTO do vídeo
+A Izabela já reclamou várias vezes de caixinhas nos vídeos errados. Nunca escolher caixinha por semelhança de palavras nem pela ordem dos arquivos.
+1. Transcrever o áudio **inteiro** (pergunta + resposta do advogado). Usar o modelo `medium`, sem cortar silêncios, quando o `small` perder a pergunta do início.
+2. Ler e entender o que o advogado explica.
+3. Escolher a caixinha cujo **tema é o mesmo**. Se nenhuma das existentes trata do mesmo assunto, NÃO usar nenhuma: escrever a pergunta nova (no estilo das existentes) e pedir para criar a caixinha.
+4. Mostrar a tabela vídeo → o que o advogado fala → caixinha, e esperar a aprovação dela antes de renderizar.
+O `analisar` só sugere; quando a semelhança é baixa, ele deixa a caixinha em branco de propósito.
+
 ## Criar caixinhas novas a partir dos vídeos
 Se os vídeos não têm caixinha ainda: `python editar.py transcrever --videos PASTA --saida transcricoes` gera `TODAS_AS_TRANSCRICOES.txt`. Ler as transcrições e escrever, para cada vídeo, a pergunta-tema no estilo das 50 existentes em `caixinhas.json` (primeira pessoa, linguagem simples, curta, termina em `?`, cerca de 40 a 60 caracteres). Mostrar para a Izabela aprovar antes de gerar as imagens.
 
@@ -54,4 +62,5 @@ Registre aqui o que deu errado e o que foi corrigido, para a próxima edição j
 - 2026-10-30: Izabela mostrou a pasta com os vídeos prontos (17, 18, 20, 22, 26, 29, 30, 32, 34, 35 a 42, 44, 45, 47, 48 e IMG_3392): em alguns a caixinha encosta no topete (visto em miniatura, sem identificar quais com certeza). Esses arquivos têm a caixinha gravada; é preciso renderizar de novo a partir dos originais. Mudanças: folga acima do cabelo de 1,5% para 3%; 9 quadros em vez de 5 e segundo detector de rosto; sem rosto detectado a caixinha usa 40% (antes 55%); coluna opcional `largura` no `plano.csv` fixa o tamanho de um vídeo específico. Sempre rodar `previa` e pedir a aprovação dela antes do lote.
 - 2026-10-30: print do vídeo 18 mostrou a caixinha (74% da largura, termina a 31,7% da altura) cobrindo o topete; medindo o quadro, o retângulo do rosto começa a 31,7% e o cabelo real fica ~0,2 da altura do rosto acima disso (~27%). Calibrado o estimador do topete para 0,30 da altura do rosto acima do retângulo (antes 0,40, que deixava espaço demais). Nesse vídeo o script faria a caixinha ter ~37% da largura e terminar a ~22%, com ~5% de folga real. Vídeo 20 (print) também tinha a caixinha praticamente encostada no cabelo.
 - 2026-11-09: `transcrever` testado no ambiente de nuvem com 2 clipes (modelo `small`, ~10 s): funcionou. O download do modelo exige os hosts `huggingface.co`, `cas-server.xethub.hf.co`, `cas-bridge.xethub.hf.co`, `cdn-lfs.hf.co`, `cdn-lfs.huggingface.co` e `us.aws.cdn.hf.co` liberados no ambiente. Os 2 clipes eram só encerramentos ("Gostou do conteúdo? Tem mais aqui no canal!"), sem pergunta.
+- 2026-11-19: lote novo (pasta "com caixinha": 01 a 07) saiu com caixinhas nos vídeos errados. Causa: a escolha por semelhança de palavras com as 50 perguntas antigas; nenhuma delas trata desses temas (sócio que esconde renda, faculdade, revisão de pensão, carreira, estudo fora, doação, testamento). Agora o `analisar` deixa a caixinha em branco sem certeza e grava a transcrição no plano, e a escolha é feita lendo o assunto.
 - (pendente) O script ainda não foi testado com os vídeos longos reais. No primeiro teste, anotar: cortes certos? vozes trocadas? caixinha certa? posição/tamanho bons?

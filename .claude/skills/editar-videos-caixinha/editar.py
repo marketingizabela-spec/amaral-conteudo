@@ -17,7 +17,7 @@ import wave
 from pathlib import Path
 
 VIDEO_EXT = {".mov", ".mp4", ".m4v"}
-COLUNAS = ["arquivo", "inicio", "silenciar", "caixinha", "pergunta_detectada", "confianca", "revisar"]
+COLUNAS = ["arquivo", "inicio", "silenciar", "caixinha", "pergunta_detectada", "confianca", "revisar", "transcricao"]
 PAD_CORTE = 0.8       # segundos antes da 1ª fala do apresentador (padrão de --folga-inicio)
 PAD_SILENCIO = 0.15   # folga em volta de cada trecho silenciado
 SR = 16000
@@ -209,16 +209,21 @@ def cmd_analisar(a):
         base = pergunta or segs[primeiro][2]
         num, sc, folga = melhor_caixinha(base, caixinhas)
         aviso = []
-        if sc < 70 or folga < 8:
-            aviso.append("CONFERIR CAIXINHA")
-        if num in usadas:
+        if sc < 80 or folga < 8:
+            # Semelhança de palavras não basta: sem certeza, NÃO escolhe caixinha nenhuma.
+            # A caixinha é decidida lendo a transcrição inteira (coluna "transcricao").
+            aviso.append("SEM CAIXINHA SEGURA: ler a transcrição e escolher pelo assunto (ou criar caixinha nova)")
+            num = None
+        elif num in usadas:
             aviso.append(f"caixinha repetida (também em {usadas[num]})")
-        usadas.setdefault(num, v.name)
+        if num:
+            usadas.setdefault(num, v.name)
         linhas.append({
             "arquivo": v.name, "inicio": f"{inicio:.2f}",
             "silenciar": "|".join(f"{s:.2f}-{e:.2f}" for s, e in silenciar),
             "caixinha": num, "pergunta_detectada": base[:160],
-            "confianca": f"{sc:.0f}", "revisar": "; ".join(aviso)})
+            "confianca": f"{sc:.0f}", "revisar": "; ".join(aviso),
+            "transcricao": " | ".join(f"[{s:.0f}s] {t}" for s, e, t in segs)})
     tmp.unlink(missing_ok=True)
     with open(a.plano, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, COLUNAS, delimiter=";")
