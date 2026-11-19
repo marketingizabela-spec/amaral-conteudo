@@ -21,6 +21,7 @@ A Izabela já reclamou várias vezes de caixinhas nos vídeos errados. Nunca esc
 O `analisar` só sugere; quando a semelhança é baixa, ele deixa a caixinha em branco de propósito.
 
 ## Criar caixinhas novas a partir dos vídeos
+Para gerar o PNG: `python gerar_caixinha.py "Pergunta?" saida.png` (mesmo cabeçalho, fonte Inter 80, quebra e altura das originais; conferido contra as 50: 47 idênticas). Caixinhas já feitas e o mapa vídeo → caixinha: pasta `caixinhas-novas/`.
 Se os vídeos não têm caixinha ainda: `python editar.py transcrever --videos PASTA --saida transcricoes` gera `TODAS_AS_TRANSCRICOES.txt`. Ler as transcrições e escrever, para cada vídeo, a pergunta-tema no estilo das 50 existentes em `caixinhas.json` (primeira pessoa, linguagem simples, curta, termina em `?`, cerca de 40 a 60 caracteres). Mostrar para a Izabela aprovar antes de gerar as imagens.
 
 As transcrições já feitas ficam em `transcricoes/transcricoes.md`. Ler esse arquivo antes de pedir de novo, e acrescentar as novas lá.
